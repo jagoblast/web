@@ -53,6 +53,9 @@ export default createRoute(async (c) => {
   if (!user) return c.redirect('/login')
 
   const account = await db.prepare("SELECT name, email, phone, address FROM users WHERE id = ?").bind(user.id).first()
+  
+  // PERBAIKAN ERROR: Jika database di-reset tapi cookie masih ada, paksa logout
+  if (!account) return c.redirect('/logout')
 
   const success = c.req.query('success')
   const error = c.req.query('err')
@@ -61,7 +64,7 @@ export default createRoute(async (c) => {
     <div className="w-full max-w-7xl mx-auto px-4 py-6 md:py-10">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
         
-        {/* SIDEBAR AKUN (STANDAR KONSISTEN) */}
+        {/* SIDEBAR AKUN */}
         <aside className="w-full lg:col-span-1">
           <div className="bg-white p-6 border border-gray-200 rounded-sm shadow-sm">
             <div className="w-16 h-16 bg-gray-900 text-white rounded-full flex items-center justify-center text-2xl font-black mb-4 shadow-inner">
