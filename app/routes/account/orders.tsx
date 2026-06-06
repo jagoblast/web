@@ -6,7 +6,6 @@ export default createRoute(async (c) => {
   const user = await getAuthUser(c)
   if (!user) return c.redirect('/login')
 
-  // Ambil daftar pesanan dari tabel store_orders yang terhubung ke pembeli ini
   const ordersQuery = await db.prepare(`
     SELECT so.id as store_order_id, so.status, so.shipping_courier, so.tracking_number, so.shipping_cost,
            o.created_at, s.name as store_name
@@ -20,15 +19,19 @@ export default createRoute(async (c) => {
   const orders = ordersQuery.results || []
 
   return c.render(
-    <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
-      <div className="flex flex-col lg:flex-row gap-8">
+    <div className="w-full max-w-7xl mx-auto px-4 py-6 md:py-10">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
         
-        {/* SIDEBAR AKUN PROPORSIONAL */}
-        <aside className="w-full lg:w-1/4 flex-shrink-0">
-          <div className="bg-white p-6 border border-gray-200 rounded-sm shadow-sm sticky top-24">
-            <h2 className="text-lg font-bold text-gray-900 line-clamp-1">{user.name}</h2>
+        {/* SIDEBAR AKUN */}
+        <aside className="w-full lg:col-span-1">
+          <div className="bg-white p-6 border border-gray-200 rounded-sm shadow-sm">
+            <div className="w-16 h-16 bg-gray-900 text-white rounded-full flex items-center justify-center text-2xl font-black mb-4 shadow-inner">
+              {user.name.charAt(0).toUpperCase()}
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 truncate">{user.name}</h2>
             <p className="text-xs text-gray-500 mb-6 truncate">{user.email}</p>
-            <nav className="space-y-1.5">
+            
+            <nav className="flex flex-col space-y-1">
               <a href="/account" className="block text-sm font-medium text-gray-600 hover:text-black hover:bg-gray-50 px-4 py-2.5 rounded-sm transition-colors">Dasbor Akun</a>
               <a href="/account/orders" className="block text-sm font-bold text-red-600 bg-red-50 px-4 py-2.5 rounded-sm">Riwayat Pesanan</a>
               <a href="/account/settings" className="block text-sm font-medium text-gray-600 hover:text-black hover:bg-gray-50 px-4 py-2.5 rounded-sm transition-colors">Pengaturan Profil</a>
@@ -36,30 +39,31 @@ export default createRoute(async (c) => {
           </div>
         </aside>
 
-        {/* KONTEN UTAMA */}
-        <main className="w-full lg:w-3/4">
+        {/* AREA PANEL UTAMA */}
+        <section className="w-full lg:col-span-3">
           <div className="bg-white p-6 md:p-8 border border-gray-200 rounded-sm shadow-sm min-h-[500px]">
-            <h3 className="text-xl font-black mb-6 border-b border-gray-100 pb-4 uppercase tracking-wider">
-              Riwayat Pesanan
+            <h3 className="text-xl font-black mb-6 border-b border-gray-100 pb-4 uppercase tracking-wider text-gray-900">
+              Riwayat Pesanan Pelanggan
             </h3>
 
             {orders.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                <p>Anda belum pernah melakukan pesanan.</p>
+              <div className="flex flex-col items-center justify-center h-72 text-gray-400">
+                <svg className="w-14 h-14 mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                <p className="text-sm font-medium">Anda belum memiliki riwayat transaksi apapun.</p>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {orders.map((order: any) => (
-                  <div key={order.store_order_id} className="border border-gray-200 rounded-sm p-5 hover:border-gray-300 transition-colors">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 pb-4 border-b border-gray-100">
+                  <div key={order.store_order_id} className="border border-gray-200 rounded-sm p-5 hover:border-slate-300 transition-colors bg-white">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 pb-4 border-b border-gray-100 gap-2">
                       <div>
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Penjual</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Toko Pengirim</span>
                         <h4 className="text-sm font-bold text-gray-900">{order.store_name}</h4>
-                        <p className="text-xs text-gray-500 mt-1">Order ID: {order.store_order_id}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">ID Transaksi: <span className="font-mono">{order.store_order_id}</span></p>
                       </div>
-                      <div className="mt-3 md:mt-0 text-left md:text-right">
-                        <span className={`inline-block px-3 py-1 text-[10px] font-bold uppercase rounded-sm ${
-                          order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      <div>
+                        <span className={`inline-block px-3 py-1 text-[10px] font-black uppercase rounded-sm ${
+                          order.status === 'pending' ? 'bg-amber-100 text-amber-800' :
                           order.status === 'completed' ? 'bg-green-100 text-green-800' :
                           order.status === 'disputed' ? 'bg-red-100 text-red-800' :
                           'bg-blue-100 text-blue-800'
@@ -69,25 +73,25 @@ export default createRoute(async (c) => {
                       </div>
                     </div>
 
-                    <div className="text-xs text-gray-600 mb-4 bg-gray-50 p-3 rounded-sm">
-                      <p><strong>Kurir:</strong> {order.shipping_courier || '-'}</p>
-                      <p><strong>Resi:</strong> {order.tracking_number || 'Belum diupdate'}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-gray-600 bg-gray-50 p-4 rounded-sm">
+                      <p><strong>Ekspedisi Kurir:</strong> {order.shipping_courier || 'JNE'}</p>
+                      <p><strong>Ongkos Kirim:</strong> Rp {order.shipping_cost.toLocaleString('id-ID')}</p>
+                      <p className="sm:col-span-2 font-mono"><strong>No. Resi Pengiriman:</strong> {order.tracking_number || 'Sedang dipersiapkan'}</p>
                     </div>
 
-                    {/* Tombol Aksi jika pesanan sedang dikirim (shipped/delivered) */}
                     {(order.status === 'shipped' || order.status === 'delivered') && (
-                      <div className="flex space-x-3 mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center space-x-3 mt-4 pt-4 border-t border-gray-100 justify-end">
                         <button 
-                          onClick={`if(confirm('Pesanan sudah sesuai? Uang akan diteruskan ke penjual.')){ fetch('/api/orders/action', {method: 'POST', body: JSON.stringify({store_order_id: '${order.store_order_id}', action: 'accept'}), headers: {'Content-Type': 'application/json'}}).then(()=>window.location.reload()) }`}
-                          className="bg-black text-white px-4 py-2 text-xs font-bold uppercase rounded-sm hover:bg-gray-800"
+                          onClick={`if(confirm('Apakah barang yang diterima sudah sesuai? Setelah dikonfirmasi, dana akan diteruskan ke saldo toko penjual.')){ fetch('/api/orders/action', {method: 'POST', body: JSON.stringify({store_order_id: '${order.store_order_id}', action: 'accept'}), headers: {'Content-Type': 'application/json'}}).then(()=>window.location.reload()) }`}
+                          className="bg-black text-white px-5 py-2.5 text-xs font-bold uppercase tracking-wider rounded-sm hover:bg-gray-800 transition-colors shadow-sm"
                         >
-                          Pesanan Diterima
+                          Konfirmasi Terima Barang
                         </button>
                         <button 
-                          onClick={`let r = prompt('Alasan komplain/refund?'); if(r){ fetch('/api/orders/action', {method: 'POST', body: JSON.stringify({store_order_id: '${order.store_order_id}', action: 'refund', reason: r}), headers: {'Content-Type': 'application/json'}}).then(()=>window.location.reload()) }`}
-                          className="border border-red-600 text-red-600 px-4 py-2 text-xs font-bold uppercase rounded-sm hover:bg-red-50"
+                          onClick={`let r = prompt('Masukkan alasan pengajuan komplain / pengembalian dana:'); if(r){ fetch('/api/orders/action', {method: 'POST', body: JSON.stringify({store_order_id: '${order.store_order_id}', action: 'refund', reason: r}), headers: {'Content-Type': 'application/json'}}).then(()=>window.location.reload()) }`}
+                          className="border border-red-600 text-red-600 px-5 py-2.5 text-xs font-bold uppercase tracking-wider rounded-sm hover:bg-red-50 transition-colors"
                         >
-                          Komplain / Refund
+                          Ajukan Refund / Komplain
                         </button>
                       </div>
                     )}
@@ -96,7 +100,7 @@ export default createRoute(async (c) => {
               </div>
             )}
           </div>
-        </main>
+        </section>
 
       </div>
     </div>
