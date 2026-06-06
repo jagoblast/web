@@ -1,51 +1,63 @@
-import { jsxRenderer } from 'hono/jsx-renderer';
+import { jsxRenderer } from 'hono/jsx-renderer'
 
 export default jsxRenderer(({ children, title }) => {
   return (
     <html lang="id">
       <head>
-        <meta charset="UTF-8" />
+        <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>{title || 'Admin Panel | Visoe Luxury'}</title>
+        <title>{title ? `${title} | Admin ShopinId` : 'Admin Dashboard - ShopinId'}</title>
+        
+        {/* Tailwind CDN */}
         <script src="https://cdn.tailwindcss.com"></script>
-        <style dangerouslySetInnerHTML={{ __html: `
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-          body { font-family: 'Inter', sans-serif; background-color: #f9f9f9; }
-        `}} />
       </head>
-      <body class="flex min-h-screen">
-        {/* SIDEBAR NAVIGATION */}
-        <aside class="w-64 bg-black text-white flex flex-col sticky top-0 h-screen">
-          <div class="p-8 border-b border-neutral-800">
-            <h1 class="text-xl font-bold uppercase tracking-[0.3em]">Visoe<span class="font-light italic text-neutral-500">Adm</span></h1>
+      <body className="bg-gray-100 min-h-screen font-sans flex text-gray-900">
+        
+        {/* === SIDEBAR MENU ADMIN === */}
+        <aside className="w-64 bg-gray-900 text-white min-h-screen flex flex-col flex-shrink-0">
+          <div className="p-6 text-center border-b border-gray-800">
+            <h1 className="text-2xl font-black tracking-tight text-white">SHOPIN<span className="text-red-500">ID</span></h1>
+            <p className="text-xs text-gray-400 mt-1 uppercase tracking-widest">Admin Panel</p>
           </div>
           
-          <nav class="flex-1 p-6 space-y-2 overflow-y-auto">
-            <a href="/admin" class="block py-3 px-4 text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-900 transition rounded">Dashboard</a>
+          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+            <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Menu Utama</p>
+            <a href="/admin" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Dashboard</a>
+            <a href="/admin/orders" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Kelola Pesanan</a>
             
-            <div class="pt-4 pb-2 text-[8px] font-bold text-neutral-500 uppercase tracking-[0.2em] px-4">Management</div>
-            <a href="/admin/products" class="block py-3 px-4 text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-900 transition rounded">Products</a>
-            <a href="/admin/categories" class="block py-3 px-4 text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-900 transition rounded">Categories</a>
-            <a href="/admin/orders" class="block py-3 px-4 text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-900 transition rounded">Orders</a>
-            {/* INI TAMBAHAN MENU PAGES */}
-            <a href="/admin/pages" class="block py-3 px-4 text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-900 transition rounded text-green-400">Pages</a>
+            <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-6">Katalog</p>
+            <a href="/admin/products" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Daftar Produk</a>
+            <a href="/admin/categories" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Kategori</a>
             
-            <div class="pt-4 pb-2 text-[8px] font-bold text-neutral-500 uppercase tracking-[0.2em] px-4">Customization</div>
-            <a href="/admin/page-builder" class="block py-3 px-4 text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-900 transition rounded">Page Builder</a>
-            <a href="/admin/media" class="block py-3 px-4 text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-900 transition rounded">Media Library</a>
-            <a href="/admin/settings" class="block py-3 px-4 text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-900 transition rounded">Settings</a>
+            <p className="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-6">Tampilan & Sistem</p>
+            <a href="/admin/page-builder" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Page Builder</a>
+            <a href="/admin/pages" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Halaman Statis</a>
+            <a href="/admin/media" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Media Library</a>
+            <a href="/admin/settings" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Pengaturan Toko</a>
           </nav>
 
-          <div class="p-6 border-t border-neutral-800">
-            <a href="/" target="_blank" class="block py-3 px-4 text-[10px] font-bold uppercase tracking-widest text-neutral-500 hover:text-white transition">View Website ↗</a>
+          <div className="p-4 border-t border-gray-800">
+            <a href="/" target="_blank" className="block w-full text-center px-4 py-2 bg-gray-800 rounded text-sm hover:bg-gray-700 transition-colors">
+              Lihat Website ↗
+            </a>
           </div>
         </aside>
 
-        {/* MAIN CONTENT AREA */}
-        <main class="flex-1 overflow-y-auto p-10">
-          {children}
+        {/* === MAIN CONTENT AREA === */}
+        <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
+          <header className="bg-white shadow-sm border-b border-gray-200 px-8 py-4 flex justify-between items-center z-10">
+            <h2 className="text-xl font-semibold text-gray-800">{title || 'Dashboard'}</h2>
+            <div className="flex items-center space-x-4">
+               <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold border border-gray-200">Mode Admin</span>
+            </div>
+          </header>
+          
+          <div className="flex-1 overflow-y-auto p-8 bg-gray-50">
+            {children}
+          </div>
         </main>
+
       </body>
     </html>
-  );
-});
+  )
+})
