@@ -1,15 +1,16 @@
 import { sign, verify } from 'hono/jwt';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 
-const JWT_SECRET = 'V1S0E_L0CK_2026_S3CR3T'; // Sebaiknya simpan di c.env.JWT_SECRET nanti
+// Helper untuk mengambil JWT dari env agar tidak hardcoded
+const getSecret = (c: any) => c.env?.JWT_SECRET || 'SHOPIN_ID_SECURE_FALLBACK_2026';
 
-export const createToken = async (payload: any) => {
-  return await sign({ ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 }, JWT_SECRET, 'HS256');
+export const createToken = async (c: any, payload: any) => {
+  return await sign({ ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 }, getSecret(c), 'HS256');
 };
 
-export const verifyToken = async (token: string) => {
+export const verifyToken = async (c: any, token: string) => {
   try {
-    return await verify(token, JWT_SECRET, 'HS256');
+    return await verify(token, getSecret(c), 'HS256');
   } catch (e) {
     return null;
   }
@@ -22,18 +23,38 @@ export const setAuthCookie = (c: any, token: string) => {
 export const getAuthUser = async (c: any) => {
   const token = getCookie(c, 'auth_token');
   if (!token) return null;
-  return await verifyToken(token);
+  return await verifyToken(c, token);
 };
 
 export const logoutUser = (c: any) => {
   deleteCookie(c, 'auth_token', { path: '/' });
 };
 
-// Fungsi Hashing Sederhana (Gunakan bcrypt di production jika memungkinkan)
-export const hashPassword = async (password: string) => {
+// PERBAIKAN KEAMANAN: Hashing menggunakan PBKDF2 WebCrypto
+export const hashPassword = async (password: string, saltString: string = 'ShopinId_Global_Salt') => {
   const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits", "deriveKey"]
+  );
+  
+  const salt = encoder.encode(saltString);
+  
+  // Melakukan 100.000 iterasi agar memakan waktu komputasi, menghentikan hacker
+  const hashBuffer = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: salt,
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    256 // Panjang bit
+  );
+  
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
