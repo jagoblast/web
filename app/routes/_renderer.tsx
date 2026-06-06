@@ -7,8 +7,9 @@ export default jsxRenderer(({ children, title }) => {
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>{title ? `${title} | ShopinId` : 'ShopinId - E-Commerce'}</title>
-        {/* Pastikan Tailwind CSS sudah ter-build dan di-link di sini */}
-        <link href="/static/style.css" rel="stylesheet" />
+        
+        {/* Menggunakan Tailwind CDN sesuai saran Anda */}
+        <script src="https://cdn.tailwindcss.com"></script>
       </head>
       <body className="bg-[#f4f7fc] min-h-screen flex flex-col font-sans text-gray-800">
         
@@ -72,12 +73,12 @@ export default jsxRenderer(({ children, title }) => {
           </div>
         </header>
 
-        {/* Konten Utama Halaman (Diinjeksi di sini) */}
+        {/* Konten Utama Halaman */}
         <main className="flex-grow flex flex-col items-center w-full">
           {children}
         </main>
 
-        {/* Footer Hitam Ala ASOS */}
+        {/* Footer */}
         <footer className="bg-black text-white py-12 mt-12 w-full">
           <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
@@ -95,7 +96,6 @@ export default jsxRenderer(({ children, title }) => {
             </div>
             <div>
               <h4 className="font-bold mb-4 text-sm uppercase tracking-wider">Metode Pembayaran</h4>
-              {/* Simulasi Logo Bank */}
               <div className="grid grid-cols-4 gap-2">
                 <div className="bg-white h-6 rounded-sm"></div>
                 <div className="bg-white h-6 rounded-sm"></div>
