@@ -16,5 +16,5 @@ id = "69d4e5e5b12c4479a2d217fdb02a6b2e"
 [[d1_databases]]
 binding = "DB"
 database_name = "shopinid"
-database_id = "777dd8e2-0550-4513-a479-d13d3a306e93"
+database_id = "fd242601-18a1-4611-9ecf-7e8db0fdf0e5"
 migrations_dir = "d1/migrations"
