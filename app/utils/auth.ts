@@ -1,15 +1,22 @@
 import { sign, verify } from 'hono/jwt';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 
-// Helper untuk mengambil JWT dari env agar tidak hardcoded
-const getSecret = (c: any) => c.env?.JWT_SECRET || 'SHOPIN_ID_SECURE_FALLBACK_2026';
+// PERBAIKAN: Wajib ambil dari Env, tidak boleh ada Fallback (Cadangan) teks biasa!
+const getSecret = (c: any) => {
+  if (!c.env?.JWT_SECRET) {
+    throw new Error("CRITICAL SECURITY ERROR: JWT_SECRET environment variable is missing!");
+  }
+  return c.env.JWT_SECRET;
+};
 
 export const createToken = async (c: any, payload: any) => {
+  // Eksplisit menggunakan algoritma HS256
   return await sign({ ...payload, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 }, getSecret(c), 'HS256');
 };
 
 export const verifyToken = async (c: any, token: string) => {
   try {
+    // Eksplisit memverifikasi dengan algoritma HS256
     return await verify(token, getSecret(c), 'HS256');
   } catch (e) {
     return null;
@@ -30,7 +37,7 @@ export const logoutUser = (c: any) => {
   deleteCookie(c, 'auth_token', { path: '/' });
 };
 
-// PERBAIKAN KEAMANAN: Hashing menggunakan PBKDF2 WebCrypto
+// Hashing menggunakan PBKDF2 WebCrypto (Tetap dipertahankan karena sudah sangat aman)
 export const hashPassword = async (password: string, saltString: string = 'ShopinId_Global_Salt') => {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
@@ -43,7 +50,6 @@ export const hashPassword = async (password: string, saltString: string = 'Shopi
   
   const salt = encoder.encode(saltString);
   
-  // Melakukan 100.000 iterasi agar memakan waktu komputasi, menghentikan hacker
   const hashBuffer = await crypto.subtle.deriveBits(
     {
       name: "PBKDF2",
@@ -52,7 +58,7 @@ export const hashPassword = async (password: string, saltString: string = 'Shopi
       hash: "SHA-256",
     },
     keyMaterial,
-    256 // Panjang bit
+    256
   );
   
   const hashArray = Array.from(new Uint8Array(hashBuffer));
