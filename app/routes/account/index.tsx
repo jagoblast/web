@@ -20,7 +20,7 @@ export default createRoute(async (c) => {
     <div className="w-full max-w-7xl mx-auto px-4 py-6 md:py-10">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
         
-        {/* SIDEBAR AKUN */}
+        {/* SIDEBAR AKUN (STANDAR KONSISTEN) */}
         <aside className="w-full lg:col-span-1">
           <div className="bg-white p-6 border border-gray-200 rounded-sm shadow-sm">
             <div className="w-16 h-16 bg-gray-900 text-white rounded-full flex items-center justify-center text-2xl font-black mb-4 shadow-inner">
@@ -41,7 +41,7 @@ export default createRoute(async (c) => {
           </div>
         </aside>
 
-        {/* AREA PANEL UTAMA */}
+        {/* KONTEN UTAMA */}
         <section className="w-full lg:col-span-3">
           <div className="bg-white p-6 md:p-8 border border-gray-200 rounded-sm shadow-sm min-h-[500px]">
             <h3 className="text-xl font-black mb-6 border-b border-gray-100 pb-4 uppercase tracking-wider text-gray-900">
