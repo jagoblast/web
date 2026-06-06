@@ -22,7 +22,7 @@ export default createRoute(async (c) => {
     <div className="w-full max-w-7xl mx-auto px-4 py-6 md:py-10">
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
         
-        {/* SIDEBAR AKUN */}
+        {/* SIDEBAR AKUN (STANDAR KONSISTEN) */}
         <aside className="w-full lg:col-span-1">
           <div className="bg-white p-6 border border-gray-200 rounded-sm shadow-sm">
             <div className="w-16 h-16 bg-gray-900 text-white rounded-full flex items-center justify-center text-2xl font-black mb-4 shadow-inner">
@@ -35,11 +35,15 @@ export default createRoute(async (c) => {
               <a href="/account" className="block text-sm font-medium text-gray-600 hover:text-black hover:bg-gray-50 px-4 py-2.5 rounded-sm transition-colors">Dasbor Akun</a>
               <a href="/account/orders" className="block text-sm font-bold text-red-600 bg-red-50 px-4 py-2.5 rounded-sm">Riwayat Pesanan</a>
               <a href="/account/settings" className="block text-sm font-medium text-gray-600 hover:text-black hover:bg-gray-50 px-4 py-2.5 rounded-sm transition-colors">Pengaturan Profil</a>
+              <a href="/seller" className="block text-sm font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-4 py-2.5 rounded-sm mt-4 border border-blue-100 transition-colors">Area Toko Saya</a>
+              <form action="/logout" method="POST" className="pt-4 mt-4 border-t border-gray-100">
+                <button type="submit" className="text-sm font-bold text-red-500 hover:text-red-700 w-full text-left px-4 py-2">Keluar (Logout)</button>
+              </form>
             </nav>
           </div>
         </aside>
 
-        {/* AREA PANEL UTAMA */}
+        {/* KONTEN UTAMA */}
         <section className="w-full lg:col-span-3">
           <div className="bg-white p-6 md:p-8 border border-gray-200 rounded-sm shadow-sm min-h-[500px]">
             <h3 className="text-xl font-black mb-6 border-b border-gray-100 pb-4 uppercase tracking-wider text-gray-900">
