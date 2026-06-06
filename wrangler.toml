@@ -1,0 +1,26 @@
+name = "visoeluxury"
+compatibility_date = "2024-03-04"
+pages_build_output_dir = "./dist"
+
+# NODEJS COMPABILITY
+compatibility_flags = [ "nodejs_compat" ]
+
+# [BACA] Binding untuk Cloudflare KV (Smart Caching)
+# Gunakan command: npx wrangler kv:namespace create "CACHE_KV"
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "9b689080f6db4eb7a017ef4d2e616f8d"
+
+# [BACA] Binding untuk Cloudflare D1 (Database SQL)
+# Gunakan command: npx wrangler d1 create premium-store-db
+[[d1_databases]]
+binding = "DB"
+database_name = "visoe"
+database_id = "cc8de02f-2c91-4533-8723-fe7e0e3ffe80"
+migrations_dir = "d1/migrations"
+
+# [BACA] Binding untuk Cloudflare R2 (Image CDN)
+# Gunakan command: npx wrangler r2 bucket create premium-store-images
+[[r2_buckets]]
+binding = "IMAGE_BUCKET"
+bucket_name = "visoe-store-images"
