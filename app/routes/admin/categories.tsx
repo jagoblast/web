@@ -4,7 +4,6 @@ import { generateId } from '../../utils/admin_utils';
 
 export default createRoute(async (c) => {
   const db = c.env.DB;
-  // Ambil semua kategori untuk ditampilkan di tabel dan dropdown
   const categories = await getAllCategories(db);
 
   return c.render(
@@ -66,7 +65,14 @@ export default createRoute(async (c) => {
                   <td class="py-4 px-6 text-xs text-gray-500">
                     {categories.find(p => p.id === cat.parent_id)?.name || <span class="text-gray-300 italic">None</span>}
                   </td>
-                  <td class="py-4 px-6 text-right">
+                  <td class="py-4 px-6 text-right space-x-4">
+                    {/* TOMBOL EDIT DITAMBAHKAN DI SINI */}
+                    <a href={`/admin/categories/edit/${cat.id}`} class="text-blue-400 hover:text-blue-600 transition inline-block">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </a>
+                    
                     <form method="POST" action={`/admin/categories/delete/${cat.id}`} class="inline" onsubmit="return confirm('Delete this category?')">
                       <button type="submit" class="text-red-300 hover:text-red-600 transition">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -91,7 +97,6 @@ export const POST = createRoute(async (c) => {
   const db = c.env.DB;
 
   const name = formData.name as string;
-  // PERBAIKAN: Jika string kosong, ubah jadi NULL untuk D1
   const parentId = (formData.parent_id as string) === "" ? null : (formData.parent_id as string);
   const slug = createSlug(name);
   const id = generateId();
@@ -106,7 +111,6 @@ export const POST = createRoute(async (c) => {
 
     return c.redirect('/admin/categories');
   } catch (err: any) {
-    // Jika ada error (misal slug duplikat), tampilkan pesan
     return c.render(
       <div class="p-10 text-center">
         <h1 class="text-red-600 font-bold text-xl">Database Error</h1>
