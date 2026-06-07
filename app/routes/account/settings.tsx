@@ -10,6 +10,7 @@ export const POST = createRoute(async (c) => {
   const name = formData.get('name') as string
   const phone = formData.get('phone') as string
   const address = formData.get('address') as string
+  const avatarUrl = formData.get('avatar_url') as string
   const oldPassword = formData.get('old_password') as string
   const newPassword = formData.get('new_password') as string
   const confirmPassword = formData.get('confirm_password') as string
@@ -17,9 +18,9 @@ export const POST = createRoute(async (c) => {
   try {
     await db.prepare(`
       UPDATE users 
-      SET name = ?, phone = ?, address = ?, updated_at = CURRENT_TIMESTAMP 
+      SET name = ?, phone = ?, address = ?, avatar_url = ?, updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?
-    `).bind(name, phone, address, user.id).run()
+    `).bind(name, phone, address, avatarUrl, user.id).run()
 
     if (oldPassword || newPassword || confirmPassword) {
       if (!oldPassword || !newPassword || !confirmPassword) {
@@ -52,9 +53,8 @@ export default createRoute(async (c) => {
   const user = await getAuthUser(c)
   if (!user) return c.redirect('/login')
 
-  const account = await db.prepare("SELECT name, email, phone, address FROM users WHERE id = ?").bind(user.id).first()
+  const account = await db.prepare("SELECT name, email, phone, address, avatar_url FROM users WHERE id = ?").bind(user.id).first()
   
-  // PERBAIKAN ERROR: Jika database di-reset tapi cookie masih ada, paksa logout
   if (!account) return c.redirect('/logout')
 
   const success = c.req.query('success')
@@ -67,8 +67,12 @@ export default createRoute(async (c) => {
         {/* SIDEBAR AKUN */}
         <aside className="w-full lg:col-span-1">
           <div className="bg-white p-6 border border-gray-200 rounded-sm shadow-sm">
-            <div className="w-16 h-16 bg-gray-900 text-white rounded-full flex items-center justify-center text-2xl font-black mb-4 shadow-inner">
-              {account.name.charAt(0).toUpperCase()}
+            <div className="w-16 h-16 bg-gray-100 text-gray-900 rounded-full flex items-center justify-center text-2xl font-black mb-4 shadow-inner overflow-hidden border border-gray-200">
+              {account.avatar_url ? (
+                <img src={account.avatar_url as string} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                account.name.charAt(0).toUpperCase()
+              )}
             </div>
             <h2 className="text-lg font-bold text-gray-900 truncate">{account.name}</h2>
             <p className="text-xs text-gray-500 mb-6 truncate">{account.email}</p>
@@ -119,6 +123,10 @@ export default createRoute(async (c) => {
                   <div>
                     <label className="block text-xs font-bold text-gray-700 uppercase mb-2">Nama Lengkap</label>
                     <input type="text" name="name" required defaultValue={account.name} className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-black focus:border-black text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 uppercase mb-2">URL Avatar (Foto Profil)</label>
+                    <input type="url" name="avatar_url" defaultValue={account.avatar_url as string || ''} className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-black focus:border-black text-sm" placeholder="https://..." />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-700 uppercase mb-2">Nomor Telepon</label>
