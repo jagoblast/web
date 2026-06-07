@@ -1,232 +1,161 @@
 import { createRoute } from 'honox/factory'
-import { getAuthUser } from '../../utils/auth'
 
-// --- LOGIKA BACKEND: MENYIMPAN PENGATURAN KE DATABASE ---
-export const POST = createRoute(async (c) => {
-  const db = c.env.DB
-  const user = await getAuthUser(c)
-  
-  // Proteksi ganda: Pastikan yang mengakses adalah Admin
-  if (!user || user.role !== 'admin') return c.redirect('/login')
-
-  const formData = await c.req.formData()
-  
-  // Ambil data pengaturan Fee
-  const adminFeeType = formData.get('admin_fee_type') as string
-  const adminFeeValue = parseFloat(formData.get('admin_fee_value') as string)
-  
-  // Ambil data API Key
-  const rajaongkirApiKey = formData.get('rajaongkir_api_key') as string
-  const cloudinaryCloudName = formData.get('cloudinary_cloud_name') as string
-  const cloudinaryApiKey = formData.get('cloudinary_api_key') as string
-  const cloudinaryApiSecret = formData.get('cloudinary_api_secret') as string
-
-  try {
-    // Cek apakah baris pengaturan sudah ada di tabel platform_settings
-    const existing = await db.prepare("SELECT id FROM platform_settings LIMIT 1").first()
-
-    if (existing) {
-        // Jika sudah ada, lakukan UPDATE
-        await db.prepare(`
-          UPDATE platform_settings 
-          SET admin_fee_type = ?, 
-              admin_fee_value = ?, 
-              rajaongkir_api_key = ?,
-              cloudinary_cloud_name = ?,
-              cloudinary_api_key = ?,
-              cloudinary_api_secret = ?,
-              updated_at = CURRENT_TIMESTAMP 
-          WHERE id = ?
-        `).bind(
-            adminFeeType, adminFeeValue, 
-            rajaongkirApiKey, cloudinaryCloudName, cloudinaryApiKey, cloudinaryApiSecret, 
-            existing.id
-        ).run()
-    } else {
-        // Jika belum ada, lakukan INSERT
-        await db.prepare(`
-          INSERT INTO platform_settings (
-            admin_fee_type, admin_fee_value, 
-            rajaongkir_api_key, cloudinary_cloud_name, cloudinary_api_key, cloudinary_api_secret
-          ) VALUES (?, ?, ?, ?, ?, ?)
-        `).bind(
-            adminFeeType, adminFeeValue, 
-            rajaongkirApiKey, cloudinaryCloudName, cloudinaryApiKey, cloudinaryApiSecret
-        ).run()
-    }
-
-    return c.redirect('/admin/settings?success=1')
-  } catch (error) {
-    console.error("Error saving settings:", error);
-    return c.redirect('/admin/settings?err=1')
-  }
-})
-
-
-// --- LOGIKA FRONTEND: MENAMPILKAN FORM PENGATURAN ---
 export default createRoute(async (c) => {
   const db = c.env.DB
-  const user = await getAuthUser(c)
+  const success = c.req.query('success')
   
-  if (!user || user.role !== 'admin') return c.redirect('/login')
-
-  // Ambil pengaturan saat ini. Jika kosong, berikan string kosong untuk API key.
-  const settings = await db.prepare("SELECT * FROM platform_settings LIMIT 1").first() || {
-    admin_fee_type: 'flat',
-    admin_fee_value: 2500,
-    rajaongkir_api_key: '',
-    cloudinary_cloud_name: '',
-    cloudinary_api_key: '',
-    cloudinary_api_secret: ''
+  // Ambil pengaturan yang sudah tersimpan
+  const settingsRecord = await db.prepare("SELECT config_json FROM store_settings WHERE id = 'GLOBAL'").first()
+  let settings: any = {}
+  if (settingsRecord && settingsRecord.config_json) {
+    settings = JSON.parse(settingsRecord.config_json as string)
   }
 
-  const success = c.req.query('success')
-  const error = c.req.query('err')
+  // Pastikan array banks ada untuk dirender
+  const banks = Array.isArray(settings.banks) ? settings.banks : []
 
   return c.render(
-    <div className="max-w-4xl mx-auto py-10 px-4">
+    <div className="max-w-4xl mx-auto py-8 px-4 space-y-8">
       
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight">Pengaturan Platform</h1>
-        <a href="/admin" className="text-sm font-bold text-gray-500 hover:text-black transition-colors">← Kembali ke Dasbor</a>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Pengaturan Sistem & API</h1>
+        <p className="text-sm text-gray-500">Konfigurasi dasar, metode pembayaran manual, dan integrasi pihak ketiga untuk platform Marketplace Anda.</p>
       </div>
+
+      {success === '1' && (
+        <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-md shadow-sm">
+          <p className="text-sm text-green-700 font-bold">Pengaturan berhasil disimpan dan diperbarui!</p>
+        </div>
+      )}
       
-      {/* Notifikasi */}
-      {success && (
-        <div className="bg-green-50 text-green-700 p-4 rounded-sm mb-6 border border-green-200 font-medium text-sm flex items-center shadow-sm">
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-          Pengaturan sistem berhasil disimpan!
-        </div>
-      )}
-      {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-sm mb-6 border border-red-200 font-medium text-sm flex items-center shadow-sm">
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          Gagal menyimpan pengaturan. Pastikan tabel platform_settings sudah di-alter.
-        </div>
-      )}
-
-      <form action="/admin/settings" method="POST" className="space-y-8">
-
-        {/* --- BAGIAN 1: API CLOUDINARY & RAJAONGKIR --- */}
-        <div className="bg-white p-6 md:p-8 rounded-sm shadow-sm border border-gray-200">
-          <h2 className="text-lg font-bold mb-6 border-b border-gray-100 pb-3 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-            Integrasi API (Layanan Eksternal)
-          </h2>
-          
-          <div className="space-y-6">
-            {/* RajaOngkir */}
-            <div>
-              <label className="block text-[11px] font-bold text-gray-500 mb-2 uppercase tracking-widest">RajaOngkir API Key</label>
-              <input 
-                type="text" 
-                name="rajaongkir_api_key" 
-                defaultValue={settings.rajaongkir_api_key as string || ''}
-                className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-black focus:border-black text-sm transition-colors" 
-                placeholder="Masukkan API Key dari panel RajaOngkir" 
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-100">
-              {/* Cloudinary */}
-              <div className="md:col-span-3">
-                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Pengaturan Media Cloudinary</p>
-              </div>
-              
-              <div>
-                <label className="block text-[10px] font-bold text-gray-800 mb-2 uppercase">Cloud Name</label>
-                <input 
-                  type="text" 
-                  name="cloudinary_cloud_name" 
-                  defaultValue={settings.cloudinary_cloud_name as string || ''}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:ring-black focus:border-black text-sm transition-colors" 
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-800 mb-2 uppercase">API Key</label>
-                <input 
-                  type="text" 
-                  name="cloudinary_api_key" 
-                  defaultValue={settings.cloudinary_api_key as string || ''}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:ring-black focus:border-black text-sm transition-colors" 
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-800 mb-2 uppercase">API Secret</label>
-                <input 
-                  type="password" 
-                  name="cloudinary_api_secret" 
-                  defaultValue={settings.cloudinary_api_secret as string || ''}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-sm focus:ring-black focus:border-black text-sm transition-colors" 
-                />
-              </div>
-            </div>
+      {/* --- FORM 1: PENGATURAN UMUM --- */}
+      <form action="/api/settings/update" method="POST" className="bg-white p-6 md:p-8 rounded-sm shadow-sm border border-gray-200">
+        <input type="hidden" name="section" value="general" />
+        <h2 className="text-lg font-bold text-gray-900 mb-4 border-b border-gray-100 pb-3">Informasi Toko Umum</h2>
+        
+        <div className="grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-4 mb-6">
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Nama Platform Marketplace</label>
+            <input type="text" name="store_name" defaultValue={settings.store_name || ''} className="w-full border-gray-300 rounded-sm shadow-sm p-3 border focus:ring-black focus:border-black text-sm" />
           </div>
         </div>
-
-        {/* --- BAGIAN 2: PENGATURAN BIAYA LAYANAN --- */}
-        <div className="bg-white p-6 md:p-8 rounded-sm shadow-sm border border-gray-200">
-          <h2 className="text-lg font-bold mb-2 border-b border-gray-100 pb-3 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            Biaya Layanan Admin (Admin Fee)
-          </h2>
-          <p className="text-sm text-gray-500 mb-8 leading-relaxed">
-            Biaya ini akan ditambahkan otomatis saat pembeli melakukan checkout. Pilih apakah berupa potongan persentase (%) atau nominal flat (Rp).
-          </p>
-          
-          <div className="bg-gray-50 p-4 rounded-sm border border-gray-100 mb-6">
-            <label className="block text-sm font-bold text-gray-800 mb-3 uppercase tracking-wider">Tipe Potongan</label>
-            <div className="flex flex-col md:flex-row gap-4 md:gap-8">
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input 
-                  type="radio" 
-                  name="admin_fee_type" 
-                  value="flat" 
-                  defaultChecked={settings.admin_fee_type === 'flat'} 
-                  className="w-4 h-4 text-black focus:ring-black border-gray-300" 
-                />
-                <span className="text-sm font-medium text-gray-700">Flat (Nominal Rupiah Tetap)</span>
-              </label>
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input 
-                  type="radio" 
-                  name="admin_fee_type" 
-                  value="percentage" 
-                  defaultChecked={settings.admin_fee_type === 'percentage'} 
-                  className="w-4 h-4 text-black focus:ring-black border-gray-300" 
-                />
-                <span className="text-sm font-medium text-gray-700">Persentase (%) dari Total Harga</span>
-              </label>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-bold text-gray-800 mb-2 uppercase tracking-wider">Nilai Potongan</label>
-            <div className="relative w-full md:w-1/2">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <span className="text-gray-500 font-medium">Rp / %</span>
-              </div>
-              <input 
-                type="number" 
-                step="0.01" 
-                name="admin_fee_value" 
-                required 
-                defaultValue={settings.admin_fee_value}
-                className="w-full pl-16 pr-4 py-3 border border-gray-300 rounded-sm focus:ring-black focus:border-black transition-colors font-bold text-lg" 
-                placeholder="2500" 
-              />
-            </div>
-          </div>
+        
+        <div className="flex justify-end pt-4 border-t border-gray-50">
+          <button type="submit" className="bg-gray-900 text-white px-6 py-2.5 rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-black transition-colors shadow">Simpan Info Umum</button>
         </div>
-
-        {/* --- TOMBOL SIMPAN --- */}
-        <div className="flex justify-end pt-2">
-          <button type="submit" className="bg-black text-white px-10 py-4 rounded-sm font-bold uppercase tracking-widest hover:bg-gray-800 transition-colors shadow-xl w-full md:w-auto text-sm">
-            Simpan Seluruh Pengaturan
-          </button>
-        </div>
-
       </form>
+
+      {/* --- FORM 2: PEMBAYARAN MANUAL (MULTI-BANK) --- */}
+      <form action="/api/settings/update" method="POST" className="bg-white p-6 md:p-8 rounded-sm shadow-sm border border-gray-200">
+        <input type="hidden" name="section" value="banks" />
+        <h2 className="text-lg font-bold text-gray-900 mb-2 border-b border-gray-100 pb-3">Rekening Bank Manual (Platform)</h2>
+        <p className="text-xs text-gray-500 mb-6">Tambahkan rekening yang akan ditampilkan saat pelanggan memilih metode "Transfer Manual". Uang akan masuk ke rekening Anda sebagai Escrow.</p>
+        
+        <div id="bank-list" className="space-y-4 mb-6">
+          {banks.map((bank: any, index: number) => (
+            <div className="bank-item grid grid-cols-1 sm:grid-cols-12 gap-4 items-end bg-gray-50 border border-gray-200 p-4 rounded-sm relative" key={index}>
+              <div className="sm:col-span-3">
+                <label className="block text-[10px] font-bold text-gray-700 mb-1 uppercase tracking-wider">Nama Bank</label>
+                <input type="text" name="bank_name[]" defaultValue={bank.bank_name} placeholder="Contoh: BCA" className="w-full border-gray-300 rounded-sm shadow-sm p-2 border text-sm focus:ring-black" required />
+              </div>
+              <div className="sm:col-span-4">
+                <label className="block text-[10px] font-bold text-gray-700 mb-1 uppercase tracking-wider">No. Rekening</label>
+                <input type="text" name="bank_account_number[]" defaultValue={bank.bank_account_number} className="w-full border-gray-300 rounded-sm shadow-sm p-2 border text-sm focus:ring-black" required />
+              </div>
+              <div className="sm:col-span-4">
+                <label className="block text-[10px] font-bold text-gray-700 mb-1 uppercase tracking-wider">Atas Nama</label>
+                <input type="text" name="bank_account_name[]" defaultValue={bank.bank_account_name} className="w-full border-gray-300 rounded-sm shadow-sm p-2 border text-sm focus:ring-black" required />
+              </div>
+              <div className="sm:col-span-1 pb-1">
+                <button type="button" onClick="this.closest('.bank-item').remove()" className="w-full bg-red-50 border border-red-200 text-red-600 p-2 rounded-sm hover:bg-red-100 font-bold text-sm" title="Hapus Bank">X</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-gray-100 gap-4">
+          <button type="button" id="btn-add-bank" className="w-full sm:w-auto text-xs bg-white px-4 py-2.5 rounded-sm border border-gray-300 font-bold text-gray-700 hover:bg-gray-50 transition-colors uppercase tracking-wider">+ Tambah Bank</button>
+          <button type="submit" className="w-full sm:w-auto bg-gray-900 text-white px-6 py-2.5 rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-black transition-colors shadow">Simpan Data Bank</button>
+        </div>
+      </form>
+
+      {/* --- FORM 3: CLOUDINARY --- */}
+      <form action="/api/settings/update" method="POST" className="bg-white p-6 md:p-8 rounded-sm shadow-sm border border-gray-200">
+        <input type="hidden" name="section" value="cloudinary" />
+        <h2 className="text-lg font-bold text-gray-900 mb-2 border-b border-gray-100 pb-3">Penyimpanan Gambar (Cloudinary)</h2>
+        <p className="text-xs text-gray-500 mb-6">Kredensial wajib untuk melakukan streaming upload gambar produk baik oleh Admin maupun Vendor.</p>
+        
+        <div className="grid grid-cols-1 gap-y-6 sm:grid-cols-3 sm:gap-x-4 mb-6">
+          <div className="sm:col-span-1">
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Cloud Name</label>
+            <input type="text" name="cloudinary_cloud_name" defaultValue={settings.cloudinary_cloud_name || ''} className="w-full border-gray-300 rounded-sm shadow-sm p-3 border text-sm focus:ring-black" />
+          </div>
+          <div className="sm:col-span-1">
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">API Key</label>
+            <input type="text" name="cloudinary_api_key" defaultValue={settings.cloudinary_api_key || ''} className="w-full border-gray-300 rounded-sm shadow-sm p-3 border text-sm focus:ring-black" />
+          </div>
+          <div className="sm:col-span-1">
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">API Secret</label>
+            <input type="password" name="cloudinary_api_secret" defaultValue="" placeholder="(Tersembunyi - Isi untuk ubah)" className="w-full border-gray-300 rounded-sm shadow-sm p-3 border text-sm focus:ring-black" />
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-4 border-t border-gray-50">
+          <button type="submit" className="bg-gray-900 text-white px-6 py-2.5 rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-black transition-colors shadow">Simpan Cloudinary</button>
+        </div>
+      </form>
+
+      {/* --- FORM 4: RAJAONGKIR --- */}
+      <form action="/api/settings/update" method="POST" className="bg-white p-6 md:p-8 rounded-sm shadow-sm border border-gray-200">
+        <input type="hidden" name="section" value="rajaongkir" />
+        <h2 className="text-lg font-bold text-gray-900 mb-2 border-b border-gray-100 pb-3">Integrasi Pengiriman (RajaOngkir)</h2>
+        <p className="text-xs text-gray-500 mb-6">Kunci API dari RajaOngkir untuk menghitung tarif ongkos kirim secara otomatis.</p>
+        
+        <div className="grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-4 mb-6">
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">API Key RajaOngkir</label>
+            <input type="password" name="rajaongkir_api_key" defaultValue={settings.rajaongkir_api_key || ''} placeholder="Masukkan API Key Anda..." className="w-full border-gray-300 rounded-sm shadow-sm p-3 border text-sm focus:ring-black" />
+          </div>
+        </div>
+
+        <div className="flex justify-end pt-4 border-t border-gray-50">
+          <button type="submit" className="bg-gray-900 text-white px-6 py-2.5 rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-black transition-colors shadow">Simpan RajaOngkir</button>
+        </div>
+      </form>
+
+      {/* SCRIPT UNTUK MENAMBAH ROW BANK BARU SECARA DINAMIS */}
+      <script dangerouslySetInnerHTML={{ __html: `
+        document.addEventListener('DOMContentLoaded', function() {
+          const btnAdd = document.getElementById('btn-add-bank');
+          const list = document.getElementById('bank-list');
+          
+          if (btnAdd && list) {
+             btnAdd.addEventListener('click', function() {
+               const div = document.createElement('div');
+               div.className = 'bank-item grid grid-cols-1 sm:grid-cols-12 gap-4 items-end bg-gray-50 border border-gray-200 p-4 rounded-sm relative mt-4';
+               div.innerHTML = \`
+                  <div class="sm:col-span-3">
+                     <label class="block text-[10px] font-bold text-gray-700 mb-1 uppercase tracking-wider">Nama Bank</label>
+                     <input type="text" name="bank_name[]" placeholder="Contoh: BNI" class="w-full border-gray-300 rounded-sm shadow-sm p-2 border text-sm focus:ring-black" required />
+                  </div>
+                  <div class="sm:col-span-4">
+                     <label class="block text-[10px] font-bold text-gray-700 mb-1 uppercase tracking-wider">No. Rekening</label>
+                     <input type="text" name="bank_account_number[]" class="w-full border-gray-300 rounded-sm shadow-sm p-2 border text-sm focus:ring-black" required />
+                  </div>
+                  <div class="sm:col-span-4">
+                     <label class="block text-[10px] font-bold text-gray-700 mb-1 uppercase tracking-wider">Atas Nama</label>
+                     <input type="text" name="bank_account_name[]" class="w-full border-gray-300 rounded-sm shadow-sm p-2 border text-sm focus:ring-black" required />
+                  </div>
+                  <div class="sm:col-span-1 pb-1">
+                     <button type="button" onclick="this.closest('.bank-item').remove()" class="w-full bg-red-50 border border-red-200 text-red-600 p-2 rounded-sm hover:bg-red-100 font-bold text-sm" title="Hapus Bank">X</button>
+                  </div>
+               \`;
+               list.appendChild(div);
+             });
+          }
+        });
+      `}} />
+
     </div>
   )
 })
