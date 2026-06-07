@@ -16,12 +16,11 @@ export default createRoute(async (c) => {
   if (!cartDataRaw) return c.redirect('/checkout?err=empty_cart')
   const cart = JSON.parse(cartDataRaw)
   
-  // 1. Validasi Produk & Ambil Detail Toko
   let itemsPriceTotal = 0
   const validCartItems = []
   
   for (const item of cart) {
-    const product = await db.prepare("SELECT id, price, stock, store_id FROM products WHERE id = ?").bind(item.id).first()
+    const product = await db.prepare("SELECT id, price, stock, store_id, is_digital FROM products WHERE id = ?").bind(item.id).first()
     if (!product || product.stock < item.quantity) return c.redirect('/checkout?err=invalid_stock')
     
     itemsPriceTotal += (product.price * item.quantity)
@@ -29,34 +28,32 @@ export default createRoute(async (c) => {
       id: product.id, 
       quantity: item.quantity, 
       price: product.price, 
-      store_id: product.store_id 
+      store_id: product.store_id,
+      is_digital: product.is_digital || 0
     })
   }
 
-  // 2. Ambil Biaya Admin dari Platform Settings
   const settings = await db.prepare("SELECT admin_fee_value FROM platform_settings ORDER BY id DESC LIMIT 1").first()
   const adminFee = settings ? settings.admin_fee_value : 2500
   
-  // Simulasi Ongkir Global (Bisa dikembangkan per-toko via RajaOngkir nanti)
-  const totalShippingFee = 15000 
-  const grandTotal = itemsPriceTotal + totalShippingFee + adminFee
+  // Ongkir Gratis jika SEMUA produk adalah produk digital (is_digital = 1)
+  const hasPhysicalProduct = validCartItems.some(item => item.is_digital === 0)
+  const totalShippingFee = hasPhysicalProduct ? 15000 : 0 
 
+  const grandTotal = itemsPriceTotal + totalShippingFee + adminFee
   const orderId = 'ORD-' + generateId().substring(0, 10).toUpperCase()
 
-  // 3. Masukkan ke Tabel Induk 'orders'
   await db.prepare(`
     INSERT INTO orders (id, user_id, status, total_items_price, total_shipping_fee, admin_fee, grand_total, shipping_address, payment_method)
     VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?)
   `).bind(orderId, user.id, itemsPriceTotal, totalShippingFee, adminFee, grandTotal, address, paymentMethod).run()
 
-  // 4. Kelompokkan berdasarkan Toko (Vendor)
   const storeGroups = validCartItems.reduce((acc, item) => {
     if (!acc[item.store_id]) acc[item.store_id] = []
     acc[item.store_id].push(item)
     return acc
   }, {})
 
-  // 5. Masukkan ke tabel 'store_orders' & 'order_items'
   for (const storeId of Object.keys(storeGroups)) {
     const storeOrderId = 'SO-' + generateId().substring(0, 8).toUpperCase()
     
@@ -73,6 +70,5 @@ export default createRoute(async (c) => {
     }
   }
 
-  // 6. Redirect ke halaman sukses / pembayaran
   return c.redirect(`/checkout/success?order_id=${orderId}`)
 })
