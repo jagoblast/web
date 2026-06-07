@@ -1,25 +1,23 @@
 import { createRoute } from 'honox/factory'
+import { getAuthUser } from '../utils/auth'
 
 export default createRoute(async (c) => {
   const db = c.env.DB
+  const user = await getAuthUser(c)
   
-  // Mengambil semua widget aktif khusus halaman beranda
   const { results: widgets } = await db.prepare(
     "SELECT * FROM frontpage_widgets WHERE is_active = 1 AND page_id = 'home' ORDER BY display_order ASC"
   ).all()
   
-  // Fungsi Pembangun Komponen Widget Dinamis
   const renderWidget = async (widget: any) => {
     const content = JSON.parse((widget.content_json as string) || '{}')
 
-    // 1. WIDGET: HERO SLIDER (Banner Utama Atas)
     if (widget.widget_type === 'hero_slider') {
       const slides = content.slides || []
       if (slides.length === 0) return null
       
       return (
         <section key={widget.id} className="w-full bg-gray-100 relative group overflow-hidden">
-          {/* Scrollable flex row dengan snap untuk simulasi slider tanpa JS berat */}
           <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide">
             {slides.map((slide: any, idx: number) => (
               <a key={idx} href={slide.link} className="flex-none w-full snap-center relative block">
@@ -33,7 +31,6 @@ export default createRoute(async (c) => {
       )
     }
 
-    // 2. WIDGET: ICON NAV (Navigasi Ikon Bundar ala Marketplace)
     if (widget.widget_type === 'icon_nav') {
       const items = content.items || []
       if (items.length === 0) return null
@@ -58,7 +55,6 @@ export default createRoute(async (c) => {
       )
     }
 
-    // 3. WIDGET: PROMO BANNER (Grid Banner Promo)
     if (widget.widget_type === 'promo_banner') {
       const promos = content.promos || []
       if (promos.length === 0) return null
@@ -71,7 +67,6 @@ export default createRoute(async (c) => {
                 <div className="aspect-[16/9] md:aspect-[4/3] w-full">
                   <img src={promo.image} alt={promo.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
                 </div>
-                {/* Overlay Text */}
                 <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-30 transition-all flex flex-col items-center justify-center text-white p-6 text-center">
                   <h3 className="text-2xl md:text-3xl font-black uppercase tracking-widest mb-2 drop-shadow-md">{promo.title}</h3>
                   {promo.subtitle && <p className="text-sm font-medium mb-4 drop-shadow-md">{promo.subtitle}</p>}
@@ -86,15 +81,30 @@ export default createRoute(async (c) => {
       )
     }
 
-    // 4. WIDGET: GRID PRODUK (Featured / New Arrivals)
     if (widget.widget_type === 'featured_products' || widget.widget_type === 'new_arrivals') {
       const productIds = content.product_ids || []
       if (productIds.length === 0) return null
 
       const placeholders = productIds.map(() => '?').join(',')
-      const { results: products } = await db.prepare(
-        `SELECT id, slug, name, price, images_json, brand FROM products WHERE id IN (${placeholders})`
-      ).bind(...productIds).all()
+      let products = []
+      
+      if (user) {
+        const { results } = await db.prepare(`
+          SELECT p.id, p.slug, p.name, p.price, p.images_json, p.brand, 
+                 CASE WHEN w.product_id IS NOT NULL THEN 1 ELSE 0 END as is_wishlisted
+          FROM products p
+          LEFT JOIN wishlists w ON p.id = w.product_id AND w.user_id = ?
+          WHERE p.id IN (${placeholders})
+        `).bind(user.id, ...productIds).all()
+        products = results
+      } else {
+        const { results } = await db.prepare(`
+          SELECT id, slug, name, price, images_json, brand, 0 as is_wishlisted
+          FROM products 
+          WHERE id IN (${placeholders})
+        `).bind(...productIds).all()
+        products = results
+      }
 
       return (
         <section key={widget.id} className="w-full bg-[#f4f7fc] py-12 px-4 md:px-8">
@@ -114,8 +124,20 @@ export default createRoute(async (c) => {
                   <a 
                     key={product.id} 
                     href={`/products/${product.slug}`}
-                    className="group bg-white rounded-sm overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col border border-gray-100"
+                    className="group bg-white rounded-sm overflow-hidden hover:shadow-xl transition-shadow duration-300 flex flex-col border border-gray-100 relative"
                   >
+                    <div className="absolute top-2 right-2 z-10">
+                      <button 
+                        type="button" 
+                        onClick={(e) => { e.preventDefault(); fetch(`/api/wishlist/toggle?product_id=${product.id}`, {method: 'POST'}) }} 
+                        className="p-1.5 bg-white/80 rounded-full hover:bg-white shadow-sm transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill={product.is_wishlisted ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className={`w-5 h-5 ${product.is_wishlisted ? 'text-red-500' : 'text-gray-400'}`}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+                        </svg>
+                      </button>
+                    </div>
+
                     <div className="w-full aspect-square bg-white relative overflow-hidden flex items-center justify-center p-2">
                       <img 
                         src={mainImage} 
@@ -156,9 +178,6 @@ export default createRoute(async (c) => {
 
   return c.render(
     <div className="bg-white min-h-screen">
-      {/* Inject global CSS untuk menyembunyikan scrollbar pada slider 
-        tapi tetap mempertahankan fungsionalitas scroll
-      */}
       <style dangerouslySetInnerHTML={{__html: `
         .scrollbar-hide::-webkit-scrollbar {
             display: none;
@@ -168,7 +187,6 @@ export default createRoute(async (c) => {
             scrollbar-width: none;
         }
       `}} />
-
       {widgetElements}
     </div>
   )
