@@ -39,45 +39,44 @@ export default createRoute(async (c) => {
   const success = c.req.query('success')
 
   return c.render(
-    <div className="w-full bg-[#f4f7fc] min-h-screen py-10 px-4">
+    <div className="py-8 px-6 md:px-10">
       <div className="max-w-4xl mx-auto space-y-6">
         
         <div className="flex justify-between items-center bg-white p-6 rounded-sm shadow-sm border border-gray-200">
           <div>
-             <h1 className="text-2xl font-bold text-gray-900">Pengaturan Boutique</h1>
-             <p className="text-sm text-gray-500">Sesuaikan tampilan toko publik Anda.</p>
+             <h1 className="text-xl md:text-2xl font-bold text-gray-900">Pengaturan Boutique</h1>
+             <p className="text-sm text-gray-500 mt-1">Sesuaikan tampilan toko publik Anda.</p>
           </div>
-          <a href="/seller" className="text-sm font-bold text-gray-500 hover:text-black">← Kembali ke Dasbor</a>
         </div>
 
         {success === '1' && (
-          <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-sm shadow-sm">
-            <p className="text-sm text-green-700 font-medium">Profil toko berhasil diperbarui!</p>
+          <div className="bg-green-50 border border-green-200 p-4 rounded-sm shadow-sm">
+            <p className="text-sm text-green-700 font-bold">✓ Profil toko berhasil diperbarui!</p>
           </div>
         )}
 
-        <form action="/seller/settings" method="POST" className="bg-white p-8 rounded-sm shadow-sm border border-gray-200 space-y-6">
+        <form action="/seller/settings" method="POST" className="bg-white p-6 md:p-8 rounded-sm shadow-sm border border-gray-200 space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">URL Foto Profil (Avatar)</label>
-              <input type="url" name="avatar_url" defaultValue={store.avatar_url as string || ''} className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-black" placeholder="https://..." />
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">URL Foto Profil (Avatar)</label>
+              <input type="url" name="avatar_url" defaultValue={store.avatar_url as string || ''} className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-black text-sm" placeholder="https://..." />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">URL Gambar Banner</label>
-              <input type="url" name="banner_url" defaultValue={store.banner_url as string || ''} className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-black" placeholder="https://..." />
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">URL Gambar Banner</label>
+              <input type="url" name="banner_url" defaultValue={store.banner_url as string || ''} className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-black text-sm" placeholder="https://..." />
+            </div>
+            <div className="md:col-span-2 pt-4 border-t border-gray-50">
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Lokasi Pengiriman (Kota)</label>
+              <input type="text" name="location" required defaultValue={store.location as string || ''} className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-black text-sm" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Lokasi Pengiriman (Kota)</label>
-              <input type="text" name="location" required defaultValue={store.location as string || ''} className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-black" />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Deskripsi Toko</label>
-              <textarea name="description" rows={4} required defaultValue={store.description as string || ''} className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-black" placeholder="Ceritakan keunikan barang yang Anda jual..."></textarea>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Deskripsi Toko</label>
+              <textarea name="description" rows={5} required defaultValue={store.description as string || ''} className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-black text-sm" placeholder="Ceritakan keunikan barang yang Anda jual..."></textarea>
             </div>
           </div>
 
           <div className="pt-6 border-t border-gray-100 flex justify-end">
-            <button type="submit" className="bg-black text-white px-8 py-3 rounded-sm font-bold uppercase tracking-widest text-sm hover:bg-gray-800 transition-colors shadow-md">
+            <button type="submit" className="bg-black text-white px-8 py-3.5 rounded-sm font-bold uppercase tracking-widest text-[10px] hover:bg-gray-800 transition-colors shadow-md">
               Simpan Pengaturan
             </button>
           </div>
