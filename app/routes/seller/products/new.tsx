@@ -13,12 +13,12 @@ export const POST = createRoute(async (c) => {
   const formData = await c.req.formData()
   const name = formData.get('name') as string
   const brand = formData.get('brand') as string
+  const category_id = formData.get('category_id') as string // DIKEMBALIKAN: Mengambil dari form
   const condition = formData.get('condition') as string
   const price = parseInt(formData.get('price') as string, 10)
   const stock = parseInt(formData.get('stock') as string, 10) || 1
   const description = formData.get('description') as string
   
-  const category_id = 'default_cat_id' // Anda bisa mengubahnya menjadi dropdown dinamis nanti
   const images_json = formData.get('images_json') as string || '[]'
 
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Math.random().toString(36).substring(2, 6)
@@ -37,8 +37,12 @@ export const POST = createRoute(async (c) => {
 })
 
 export default createRoute(async (c) => {
+  const db = c.env.DB
   const user = await getAuthUser(c)
   if (!user) return c.redirect('/login')
+
+  // MENGAMBIL DAFTAR KATEGORI DARI DATABASE
+  const { results: categories } = await db.prepare("SELECT id, name FROM categories ORDER BY name ASC").all()
 
   return c.render(
     <div className="w-full bg-[#f4f7fc] min-h-screen py-10 px-4">
@@ -70,14 +74,12 @@ export default createRoute(async (c) => {
                </div>
             </div>
             
-            {/* Indikator Loading */}
             <div id="upload-progress" className="hidden mt-4 text-center">
               <span className="inline-block animate-pulse text-sm font-bold text-blue-600 bg-blue-50 px-4 py-2 rounded-full border border-blue-200">
                 ⏳ Sedang memproses unggahan...
               </span>
             </div>
 
-            {/* Area Pratinjau Gambar */}
             <div id="image-preview" className="flex flex-wrap gap-4 mt-6"></div>
           </div>
 
@@ -86,6 +88,17 @@ export default createRoute(async (c) => {
             <div className="md:col-span-2">
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Nama Produk</label>
               <input type="text" name="name" required className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-black focus:border-black transition-colors" placeholder="Contoh: Balenciaga City Bag Black" />
+            </div>
+
+            {/* DIKEMBALIKAN: DROPDOWN KATEGORI DINAMIS */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Kategori Produk</label>
+              <select name="category_id" required className="w-full px-4 py-3 border border-gray-300 rounded-sm focus:ring-black focus:border-black transition-colors bg-white">
+                <option value="">-- Pilih Kategori --</option>
+                {categories.map((cat: any) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -137,7 +150,6 @@ export default createRoute(async (c) => {
             
             let uploadedImages = [];
 
-            // Efek visual Drag & Drop
             dropZone.addEventListener('dragover', (e) => {
                e.preventDefault();
                dropZone.classList.add('border-black', 'bg-gray-100');
@@ -154,7 +166,6 @@ export default createRoute(async (c) => {
                }
             });
 
-            // Eksekusi API Upload ke Cloudinary
             fileInput.addEventListener('change', async (e) => {
                const files = e.target.files;
                if (!files.length) return;
