@@ -44,7 +44,7 @@ export default createRoute(async (c) => {
         
         <div className="flex justify-between items-center bg-white p-6 rounded-sm shadow-sm border border-gray-200">
           <div>
-             <h1 className="text-xl md:text-2xl font-bold text-gray-900">Pengaturan Boutique</h1>
+             <h1 className="text-xl md:text-2xl font-bold text-gray-900">Pengaturan Toko</h1>
              <p className="text-sm text-gray-500 mt-1">Sesuaikan tampilan toko publik Anda.</p>
           </div>
         </div>
