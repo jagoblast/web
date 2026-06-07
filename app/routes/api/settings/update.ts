@@ -1,7 +1,16 @@
 import { createRoute } from 'honox/factory'
+import { getAuthUser } from '../../../utils/auth' // Sesuaikan path utils jika perlu
 
-export default createRoute(async (c) => {
+// PERBAIKAN KRITIS: Harus export const POST, bukan export default!
+export const POST = createRoute(async (c) => {
   const db = c.env.DB
+  
+  // Keamanan: Pastikan hanya super admin yang bisa mengubah pengaturan ini
+  const user = await getAuthUser(c)
+  if (!user || user.role !== 'admin') {
+    return c.text('403 Forbidden: Akses Ditolak.', 403)
+  }
+
   const formData = await c.req.formData()
   const section = formData.get('section') as string // Mendeteksi blok mana yang dikirim
   
@@ -53,8 +62,9 @@ export default createRoute(async (c) => {
   await db.prepare(`
     INSERT INTO store_settings (id, config_json) 
     VALUES ('GLOBAL', ?) 
-    ON CONFLICT(id) DO UPDATE SET config_json = excluded.config_json
+    ON CONFLICT(id) DO UPDATE SET config_json = excluded.config_json, updated_at = CURRENT_TIMESTAMP
   `).bind(JSON.stringify(newSettings)).run()
 
+  // Mengembalikan Response Redirect (Tidak akan undefined lagi)
   return c.redirect('/admin/settings?success=1')
 })
