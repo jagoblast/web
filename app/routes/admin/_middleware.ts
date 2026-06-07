@@ -1,15 +1,19 @@
-import { createMiddleware } from 'hono/factory'
+import { createRoute } from 'honox/factory'
 import { getAuthUser } from '../../utils/auth'
 
-export const middleware = createMiddleware(async (c, next) => {
-  // 1. Verifikasi JWT Enskripsi HS256
+export default createRoute(async (c, next) => {
+  // 1. Verifikasi JWT 
   const user = await getAuthUser(c)
   
-  // 2. Otorisasi Ketat Berbasis Role Database
+  // 2. Otorisasi Ketat: Jika belum login atau rolenya bukan admin, tolak!
   if (!user || user.role !== 'admin') {
-    // Anda bisa melempar error 403 atau melempar mereka kembali ke login
-    return c.text('403 Forbidden: Anda bukan Administrator ShopinId.', 403)
+    // Bisa dikembalikan ke text 403 atau di-redirect ke halaman login
+    return c.text('403 Forbidden: Akses Ditolak. Anda bukan Administrator.', 403)
+    
+    // Opsional: Jika ingin langsung dilempar ke login, gunakan baris ini:
+    // return c.redirect('/login')
   }
   
+  // Jika aman (admin), lanjutkan ke halaman yang dituju
   await next()
 })
