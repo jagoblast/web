@@ -111,28 +111,172 @@ export default createRoute(async (c) => {
     }
 
     // ==========================================
-    // 2. WIDGET: HERO SLIDER (SUDAH DIPERBAIKI / DIKEMBALIKAN)
+    // 2. WIDGET: HERO SLIDER
     // ==========================================
     if (widget.widget_type === 'hero_slider') {
       const slides = content.slides || []
       if (slides.length === 0) return null
+      
+      const sliderId = `hero-slider-${widget.id}`
+      const dotsId = `hero-dots-${widget.id}`
+      const prevBtnId = `hero-prev-${widget.id}`
+      const nextBtnId = `hero-next-${widget.id}`
+
       return (
-        <section key={widget.id} className="w-full bg-gray-100 relative group overflow-hidden">
-          <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide">
-            {slides.map((slide: any, idx: number) => (
-              <a key={idx} href={slide.link} className="flex-none w-full snap-center relative block">
-                {/* Proporsi tinggi sudah dikembalikan ke awal */}
-                <div className="w-full h-[400px] md:h-[500px] lg:h-[650px] bg-gray-200">
-                  <img src={slide.image} alt={slide.title} className="w-full h-full object-cover object-center" loading={idx === 0 ? "eager" : "lazy"} />
-                </div>
-                {/* Teks Overlay Slider sudah dikembalikan! */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                   <h2 className="text-white text-4xl md:text-6xl font-black uppercase tracking-widest drop-shadow-lg text-center px-4">
-                      {slide.title}
-                   </h2>
-                </div>
-              </a>
-            ))}
+        <section key={widget.id} className="w-full bg-white py-6 px-4 md:px-8">
+          <div className="max-w-7xl mx-auto rounded-sm relative group shadow-sm overflow-hidden">
+            
+            <div className="relative w-full">
+              {/* Slider Container */}
+              <div id={sliderId} className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-smooth">
+                {slides.map((slide: any, idx: number) => (
+                  <a key={idx} href={slide.link} className="flex-none w-full snap-center block">
+                    <div className="w-full bg-gray-50">
+                      <img 
+                        src={slide.image} 
+                        alt={slide.title} 
+                        className="w-full h-auto object-cover object-center" 
+                        loading={idx === 0 ? "eager" : "lazy"} 
+                      />
+                    </div>
+                  </a>
+                ))}
+              </div>
+
+              {/* Navigasi Panah Kiri */}
+              <button 
+                id={prevBtnId} 
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center shadow-md z-10 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 scale-90 hover:scale-100"
+                aria-label="Previous Slide"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+              
+              {/* Navigasi Panah Kanan */}
+              <button 
+                id={nextBtnId} 
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center shadow-md z-10 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 scale-90 hover:scale-100"
+                aria-label="Next Slide"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
+
+              {/* Dot Indicators */}
+              <div id={dotsId} className="absolute bottom-4 left-0 right-0 flex justify-center space-x-2 z-10">
+                {slides.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    aria-label={`Slide ${idx + 1}`}
+                    data-index={idx}
+                    className={`w-2.5 h-2.5 rounded-full transition-all duration-300 shadow-sm ${
+                      idx === 0 ? 'bg-white scale-125' : 'bg-white/50 hover:bg-white/80'
+                    }`}
+                  ></button>
+                ))}
+              </div>
+            </div>
+
+            {/* Skrip Javascript untuk Auto-Play & Navigation */}
+            <script dangerouslySetInnerHTML={{__html: `
+              (function() {
+                const slider = document.getElementById('${sliderId}');
+                const dotsContainer = document.getElementById('${dotsId}');
+                const prevBtn = document.getElementById('${prevBtnId}');
+                const nextBtn = document.getElementById('${nextBtnId}');
+                
+                if (!slider) return;
+                
+                const totalSlides = ${slides.length};
+                if (totalSlides <= 1) {
+                  if (dotsContainer) dotsContainer.style.display = 'none';
+                  if (prevBtn) prevBtn.style.display = 'none';
+                  if (nextBtn) nextBtn.style.display = 'none';
+                  return; 
+                }
+                
+                let currentIndex = 0;
+                let autoPlayTimer;
+                
+                const updateDots = (index) => {
+                  if (!dotsContainer) return;
+                  const dots = dotsContainer.querySelectorAll('button');
+                  dots.forEach((dot, i) => {
+                    if (i === index) {
+                      dot.className = 'w-2.5 h-2.5 rounded-full transition-all duration-300 shadow-sm bg-white scale-125';
+                    } else {
+                      dot.className = 'w-2.5 h-2.5 rounded-full transition-all duration-300 shadow-sm bg-white/50 hover:bg-white/80';
+                    }
+                  });
+                };
+
+                const goToSlide = (index) => {
+                  currentIndex = index;
+                  slider.scrollTo({
+                    left: slider.clientWidth * currentIndex,
+                    behavior: 'smooth'
+                  });
+                  updateDots(currentIndex);
+                  resetTimer();
+                };
+
+                // Event Listener Panah Navigasi
+                if (prevBtn) {
+                  prevBtn.addEventListener('click', () => {
+                    const prevIndex = (currentIndex - 1 + totalSlides) % totalSlides;
+                    goToSlide(prevIndex);
+                  });
+                }
+
+                if (nextBtn) {
+                  nextBtn.addEventListener('click', () => {
+                    const nextIndex = (currentIndex + 1) % totalSlides;
+                    goToSlide(nextIndex);
+                  });
+                }
+
+                // Event Listener Dot Navigasi
+                if (dotsContainer) {
+                  const dots = dotsContainer.querySelectorAll('button');
+                  dots.forEach((dot, index) => {
+                    dot.addEventListener('click', () => {
+                      goToSlide(index);
+                    });
+                  });
+                }
+
+                // Sinkronisasi manual swipe
+                slider.addEventListener('scroll', () => {
+                  const scrollPosition = slider.scrollLeft;
+                  const slideIndex = Math.round(scrollPosition / slider.clientWidth);
+                  
+                  if (slideIndex !== currentIndex && slideIndex >= 0 && slideIndex < totalSlides) {
+                    currentIndex = slideIndex;
+                    updateDots(currentIndex);
+                    resetTimer();
+                  }
+                }, { passive: true });
+
+                const startTimer = () => {
+                  autoPlayTimer = setInterval(() => {
+                    const nextIndex = (currentIndex + 1) % totalSlides;
+                    goToSlide(nextIndex);
+                  }, 4000);
+                };
+
+                const resetTimer = () => {
+                  clearInterval(autoPlayTimer);
+                  startTimer();
+                };
+
+                startTimer();
+              })();
+            `}} />
+
           </div>
         </section>
       )
