@@ -17,9 +17,8 @@ export const POST = createRoute(async (c) => {
   if (section === 'general') {
     const feeType = formData.get('admin_fee_type') as string
     const feeValue = parseInt(formData.get('admin_fee_value') as string, 10) || 0
-    const whatsapp = formData.get('whatsapp_number') as string
+    const whatsapp = (formData.get('whatsapp_number') as string || '').trim()
     
-    // Pengaman: Otomatis tambahkan kolom whatsapp_number jika belum ada di D1
     try { await db.prepare("ALTER TABLE platform_settings ADD COLUMN whatsapp_number TEXT").run() } catch(e) {}
 
     await db.prepare(`UPDATE platform_settings SET admin_fee_type = ?, admin_fee_value = ?, whatsapp_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1`)
@@ -33,7 +32,7 @@ export const POST = createRoute(async (c) => {
     const banks = []
     for(let i = 0; i < bankNames.length; i++) {
       if(bankNames[i]) {
-        banks.push({ bank_name: bankNames[i], bank_account_number: bankAccNums[i], bank_account_name: bankAccNames[i] })
+        banks.push({ bank_name: bankNames[i].trim(), bank_account_number: bankAccNums[i].trim(), bank_account_name: bankAccNames[i].trim() })
       }
     }
     
@@ -43,11 +42,13 @@ export const POST = createRoute(async (c) => {
       .bind(JSON.stringify(banks)).run()
   } 
   else if (section === 'cloudinary') {
-    const cloudName = formData.get('cloudinary_cloud_name') as string
-    const apiKey = formData.get('cloudinary_api_key') as string
-    const apiSecret = formData.get('cloudinary_api_secret') as string
+    // PERBAIKAN: Gunakan .trim() untuk membuang spasi kosong tidak sengaja dari hasil copy-paste
+    const cloudName = (formData.get('cloudinary_cloud_name') as string || '').trim()
+    const apiKey = (formData.get('cloudinary_api_key') as string || '').trim()
+    const apiSecretRaw = formData.get('cloudinary_api_secret') as string
+    const apiSecret = apiSecretRaw ? apiSecretRaw.trim() : ''
 
-    if (apiSecret) {
+    if (apiSecret !== '') {
       await db.prepare(`UPDATE platform_settings SET cloudinary_cloud_name = ?, cloudinary_api_key = ?, cloudinary_api_secret = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1`)
         .bind(cloudName, apiKey, apiSecret).run()
     } else {
@@ -56,7 +57,7 @@ export const POST = createRoute(async (c) => {
     }
   }
   else if (section === 'rajaongkir') {
-    const key = formData.get('rajaongkir_api_key') as string
+    const key = (formData.get('rajaongkir_api_key') as string || '').trim()
     await db.prepare("UPDATE platform_settings SET rajaongkir_api_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1").bind(key).run()
   }
 
