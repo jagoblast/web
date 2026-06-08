@@ -1,40 +1,42 @@
 import { createRoute } from 'honox/factory'
 
+export const POST = createRoute(async (c) => {
+  const db = c.env.DB
+  const formData = await c.req.formData()
+  const walletId = formData.get('wallet_id') as string
+  const amount = parseInt(formData.get('amount') as string, 10)
+
+  // Suntik/Kurangi saldo available (Hanya Super Admin)
+  await db.prepare(`
+    UPDATE vendor_wallets 
+    SET available_balance = available_balance + ?, updated_at = CURRENT_TIMESTAMP 
+    WHERE id = ?
+  `).bind(amount, walletId).run()
+
+  return c.redirect('/admin/finance?success=injected')
+})
+
 export default createRoute(async (c) => {
   const db = c.env.DB
+  const success = c.req.query('success')
   
-  // Ambil data dompet dari semua vendor
   const { results: wallets } = await db.prepare(`
-    SELECT w.id, w.pending_balance, w.available_balance, w.updated_at, 
-           s.name as store_name, s.slug 
+    SELECT w.id, w.pending_balance, w.available_balance, w.updated_at, s.name as store_name
     FROM vendor_wallets w
     JOIN stores s ON w.store_id = s.id
-    ORDER BY w.available_balance DESC, w.pending_balance DESC
+    ORDER BY w.available_balance DESC
   `).all()
-
-  // Hitung total likuiditas platform
-  const totalAvailable = wallets.reduce((sum, w: any) => sum + w.available_balance, 0)
-  const totalPending = wallets.reduce((sum, w: any) => sum + w.pending_balance, 0)
 
   return c.render(
     <div className="bg-white p-6 md:p-8 rounded-sm shadow-sm border border-gray-200">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-           <h2 className="text-xl font-bold text-gray-900">Keuangan & Saldo Vendor</h2>
-           <p className="text-sm text-gray-500 mt-1">Awasi likuiditas dan permintaan penarikan dana dari penjual.</p>
-        </div>
-      </div>
+      <h2 className="text-xl font-bold text-gray-900 mb-1">Keuangan & Saldo Vendor</h2>
+      <p className="text-sm text-gray-500 mb-6">Kelola dan suntik saldo vendor secara manual.</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-         <div className="bg-gray-900 text-white p-6 rounded-sm shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Total Saldo Tersedia (Siap Ditarik)</p>
-            <h3 className="text-3xl font-black">Rp {(totalAvailable as number).toLocaleString('id-ID')}</h3>
-         </div>
-         <div className="bg-gray-50 border border-gray-200 text-gray-900 p-6 rounded-sm shadow-sm">
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Total Dana Tertahan (Escrow)</p>
-            <h3 className="text-3xl font-black">Rp {(totalPending as number).toLocaleString('id-ID')}</h3>
-         </div>
-      </div>
+      {success === 'injected' && (
+        <div className="bg-green-50 border border-green-200 p-4 rounded-sm mb-6">
+          <p className="text-sm text-green-700 font-bold">Saldo dompet vendor berhasil disesuaikan!</p>
+        </div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
@@ -42,30 +44,24 @@ export default createRoute(async (c) => {
             <tr className="bg-gray-50 border-y border-gray-200 text-xs uppercase tracking-wider text-gray-500">
               <th className="p-4 font-bold">Boutique (Vendor)</th>
               <th className="p-4 font-bold">Saldo Tersedia</th>
-              <th className="p-4 font-bold">Dana Tertahan</th>
-              <th className="p-4 font-bold">Terakhir Diperbarui</th>
-              <th className="p-4 font-bold">Aksi</th>
+              <th className="p-4 font-bold">Aksi (Suntik Saldo)</th>
             </tr>
           </thead>
           <tbody className="text-sm text-gray-700">
-            {wallets.length === 0 ? (
-               <tr><td colSpan={5} className="p-8 text-center text-gray-500">Belum ada data dompet aktif.</td></tr>
-            ) : (
-              wallets.map((w: any) => (
-                <tr key={w.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                  <td className="p-4">
-                    <div className="font-bold text-gray-900">{w.store_name}</div>
-                    <div className="text-[10px] text-gray-400">ID: {w.id}</div>
-                  </td>
-                  <td className="p-4 font-black text-green-600">Rp {(w.available_balance as number).toLocaleString('id-ID')}</td>
-                  <td className="p-4 font-bold text-gray-500">Rp {(w.pending_balance as number).toLocaleString('id-ID')}</td>
-                  <td className="p-4 text-xs text-gray-500">{new Date(w.updated_at).toLocaleDateString('id-ID')}</td>
-                  <td className="p-4">
-                    <button className="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-sm text-xs font-bold hover:bg-gray-200 border border-gray-200">Riwayat</button>
-                  </td>
-                </tr>
-              ))
-            )}
+            {wallets.map((w: any) => (
+              <tr key={w.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="p-4 font-bold text-gray-900">{w.store_name}</td>
+                <td className="p-4 font-black text-green-600">Rp {(w.available_balance as number).toLocaleString('id-ID')}</td>
+                <td className="p-4">
+                  {/* Form Suntik Saldo Cepat */}
+                  <form action="/admin/finance" method="POST" className="flex items-center space-x-2">
+                    <input type="hidden" name="wallet_id" value={w.id} />
+                    <input type="number" name="amount" placeholder="Nominal (+/-)" required className="border border-gray-300 px-3 py-1.5 rounded-sm text-xs w-32 focus:ring-black" />
+                    <button type="submit" className="bg-black text-white px-3 py-1.5 rounded-sm text-xs font-bold uppercase tracking-widest hover:bg-gray-800">Ubah Saldo</button>
+                  </form>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
