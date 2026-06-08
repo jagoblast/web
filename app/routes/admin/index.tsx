@@ -28,7 +28,7 @@ export default createRoute(async (c) => {
   const totalAdminFeeOrder = stats[5].results[0]?.total || 0
 
   // RUMUS AKUNTANSI KEUNTUNGAN BERSIH PLATFORM MARKETPLACE
-  const totalKeuntungan = (totalPendaftaran + totalAdminFeeOrder) - totalBonusDeposit
+  const totalKeuntungan = (totalPendaftaran as number + totalAdminFeeOrder as number) - (totalBonusDeposit as number)
 
   const MoneyIcon = () => (
     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,7 +36,8 @@ export default createRoute(async (c) => {
     </svg>
   )
 
-  return (
+  // PERBAIKAN: Harus menggunakan return c.render(...)
+  return c.render(
     <div className="bg-transparent min-h-screen pb-10">
       <div className="mb-8">
         <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">Admin Dashboard</h1>
