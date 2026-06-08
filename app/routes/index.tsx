@@ -17,50 +17,121 @@ export default createRoute(async (c) => {
       const slides = content.slides || []
       if (slides.length === 0) return null
       
-      // Buat ID unik untuk target slider
       const sliderId = `hero-slider-${widget.id}`
+      const dotsId = `hero-dots-${widget.id}`
 
       return (
         <section key={widget.id} className="w-full bg-white py-6 px-4 md:px-8">
-          <div className="max-w-7xl mx-auto overflow-hidden rounded-sm relative group shadow-sm">
+          <div className="max-w-7xl mx-auto rounded-sm relative group shadow-sm overflow-hidden">
             
-            {/* Tambahkan scroll-smooth agar perpindahannya beranimasi */}
-            <div id={sliderId} className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-smooth">
-              {slides.map((slide: any, idx: number) => (
-                <a key={idx} href={slide.link} className="flex-none w-full snap-center block">
-                  <div className="w-full bg-gray-50">
-                    <img 
-                      src={slide.image} 
-                      alt={slide.title} 
-                      className="w-full h-auto object-cover object-center" 
-                      loading={idx === 0 ? "eager" : "lazy"} 
-                    />
-                  </div>
-                </a>
-              ))}
+            {/* Wrapper Relative untuk menahan absolute dots */}
+            <div className="relative w-full">
+              {/* Slider Container */}
+              <div id={sliderId} className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-smooth">
+                {slides.map((slide: any, idx: number) => (
+                  <a key={idx} href={slide.link} className="flex-none w-full snap-center block">
+                    <div className="w-full bg-gray-50">
+                      <img 
+                        src={slide.image} 
+                        alt={slide.title} 
+                        className="w-full h-auto object-cover object-center" 
+                        loading={idx === 0 ? "eager" : "lazy"} 
+                      />
+                    </div>
+                  </a>
+                ))}
+              </div>
+
+              {/* Dot Indicators */}
+              <div id={dotsId} className="absolute bottom-4 left-0 right-0 flex justify-center space-x-2 z-10">
+                {slides.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    aria-label={`Slide ${idx + 1}`}
+                    data-index={idx}
+                    className={`w-2.5 h-2.5 rounded-full transition-all duration-300 shadow-sm ${
+                      idx === 0 ? 'bg-white scale-125' : 'bg-white/50 hover:bg-white/80'
+                    }`}
+                  ></button>
+                ))}
+              </div>
             </div>
 
-            {/* Skrip Javascript untuk Auto-Play */}
+            {/* Skrip Javascript untuk Auto-Play & Dot Navigation */}
             <script dangerouslySetInnerHTML={{__html: `
               (function() {
                 const slider = document.getElementById('${sliderId}');
-                if (!slider) return;
+                const dotsContainer = document.getElementById('${dotsId}');
+                if (!slider || !dotsContainer) return;
                 
+                const dots = dotsContainer.querySelectorAll('button');
                 const totalSlides = ${slides.length};
-                if (totalSlides <= 1) return; // Tidak perlu auto-play jika hanya 1 banner
+                if (totalSlides <= 1) {
+                  dotsContainer.style.display = 'none'; // Sembunyikan titik jika cuma 1 gambar
+                  return; 
+                }
                 
                 let currentIndex = 0;
+                let autoPlayTimer;
                 
-                setInterval(() => {
-                  // Kembali ke gambar pertama jika sudah di ujung
-                  currentIndex = (currentIndex + 1) % totalSlides;
-                  
-                  // Geser posisi scroll secara otomatis
+                // Fungsi untuk merubah tampilan titik aktif
+                const updateDots = (index) => {
+                  dots.forEach((dot, i) => {
+                    if (i === index) {
+                      dot.className = 'w-2.5 h-2.5 rounded-full transition-all duration-300 shadow-sm bg-white scale-125';
+                    } else {
+                      dot.className = 'w-2.5 h-2.5 rounded-full transition-all duration-300 shadow-sm bg-white/50 hover:bg-white/80';
+                    }
+                  });
+                };
+
+                // Fungsi untuk pindah slide
+                const goToSlide = (index) => {
+                  currentIndex = index;
                   slider.scrollTo({
                     left: slider.clientWidth * currentIndex,
                     behavior: 'smooth'
                   });
-                }, 4000); // Ganti angka 4000 untuk mengatur jeda waktu (4000 = 4 detik)
+                  updateDots(currentIndex);
+                  resetTimer(); // Reset timer saat diklik agar tidak bentrok
+                };
+
+                // Event listener untuk klik pada titik
+                dots.forEach((dot, index) => {
+                  dot.addEventListener('click', () => {
+                    goToSlide(index);
+                  });
+                });
+
+                // Sinkronisasi titik jika user men-swipe manual di HP
+                slider.addEventListener('scroll', () => {
+                  // Gunakan pembulatan untuk mencari tahu index mana yang sedang dominan di layar
+                  const scrollPosition = slider.scrollLeft;
+                  const slideIndex = Math.round(scrollPosition / slider.clientWidth);
+                  
+                  if (slideIndex !== currentIndex && slideIndex >= 0 && slideIndex < totalSlides) {
+                    currentIndex = slideIndex;
+                    updateDots(currentIndex);
+                    resetTimer();
+                  }
+                }, { passive: true });
+
+                // Logic Auto-play
+                const startTimer = () => {
+                  autoPlayTimer = setInterval(() => {
+                    const nextIndex = (currentIndex + 1) % totalSlides;
+                    goToSlide(nextIndex);
+                  }, 4000);
+                };
+
+                const resetTimer = () => {
+                  clearInterval(autoPlayTimer);
+                  startTimer();
+                };
+
+                // Mulai auto-play pertama kali
+                startTimer();
               })();
             `}} />
 
@@ -68,7 +139,6 @@ export default createRoute(async (c) => {
         </section>
       )
     }
-
     // 2. WIDGET: ICON NAV (Kategori / Brand Bundar)
     if (widget.widget_type === 'icon_nav') {
       const items = content.items || []
