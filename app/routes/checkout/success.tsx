@@ -1,66 +1,47 @@
 import { createRoute } from 'honox/factory'
+import { getAuthUser } from '../../utils/auth'
 
 export default createRoute(async (c) => {
   const db = c.env.DB
-  const orderId = c.req.query('order_id')
-  const method = c.req.query('method')
+  const user = await getAuthUser(c)
+  if (!user) return c.redirect('/login')
 
+  const orderId = c.req.query('order_id')
   if (!orderId) return c.redirect('/')
 
-  // Ambil total harga order
-  const order = await db.prepare("SELECT total_amount FROM orders WHERE id = ?").bind(orderId).first()
-  
-  let bankInfo = null
-  // Jika pembayarannya manual, tarik data rekening dari tabel store_settings
-  if (method === 'manual') {
-    const settings = await db.prepare("SELECT config_json FROM store_settings WHERE id = 'GLOBAL'").first()
-    if (settings && settings.config_json) {
-      const config = JSON.parse(settings.config_json as string)
-      bankInfo = {
-        bankName: config.bank_name || 'Bank Belum Diatur',
-        accountNumber: config.bank_account_number || '-',
-        accountName: config.bank_account_name || '-'
-      }
-    }
+  // Ambil pengaturan toko untuk nomor WhatsApp admin
+  const settingsRecord = await db.prepare("SELECT config_json FROM store_settings WHERE id = 'GLOBAL'").first()
+  let settings: any = {}
+  if (settingsRecord && settingsRecord.config_json) {
+    settings = JSON.parse(settingsRecord.config_json as string)
   }
+  const waNumber = settings.whatsapp_number || '6281234567890'
+
+  const order = await db.prepare("SELECT grand_total FROM orders WHERE id = ?").bind(orderId).first()
+
+  // Format Pesan WhatsApp
+  const waMessage = encodeURIComponent(`Halo Admin ShopinId,\n\nSaya telah melakukan pesanan dengan detail berikut:\n*ID Pesanan:* ${orderId}\n*Total Tagihan:* Rp ${(order?.grand_total as number || 0).toLocaleString('id-ID')}\n\nMohon informasi rekening untuk pembayaran manual. Terima kasih.`);
+  const waLink = `https://wa.me/${waNumber}?text=${waMessage}`;
 
   return c.render(
-    <div className="max-w-2xl mx-auto py-16 px-4 text-center">
-      <div className="bg-green-100 text-green-700 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-        <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-      </div>
-      
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">Pesanan Berhasil!</h1>
-      <p className="text-gray-600 mb-8 text-lg">Terima kasih. ID Pesanan Anda: <strong className="text-black bg-gray-100 px-2 py-1 rounded">{orderId}</strong></p>
-
-      {/* Blok Instruksi Transfer Manual */}
-      {method === 'manual' && bankInfo && (
-        <div className="bg-blue-50 border border-blue-200 p-8 rounded-lg text-left mb-8 shadow-sm">
-          <h2 className="text-xl font-bold text-blue-900 mb-4 border-b border-blue-200 pb-2">Instruksi Pembayaran Manual</h2>
-          <p className="text-blue-800 mb-6">Silakan lakukan transfer tepat sebesar <strong className="text-2xl block mt-2 text-black">Rp {order?.total_amount?.toLocaleString('id-ID')}</strong> ke rekening berikut:</p>
-          
-          <div className="bg-white p-6 rounded border border-blue-100 shadow-sm">
-            <p className="text-sm text-gray-500 uppercase tracking-wider">Bank</p>
-            <p className="font-bold text-xl mb-4 text-gray-900">{bankInfo.bankName}</p>
-            
-            <p className="text-sm text-gray-500 uppercase tracking-wider">Nomor Rekening</p>
-            <p className="font-bold text-2xl mb-4 text-blue-700 tracking-widest">{bankInfo.accountNumber}</p>
-            
-            <p className="text-sm text-gray-500 uppercase tracking-wider">Atas Nama Pemilik</p>
-            <p className="font-bold text-xl text-gray-900">{bankInfo.accountName}</p>
-          </div>
-          
-          <p className="text-sm text-blue-800 mt-6 bg-blue-100 p-3 rounded">
-            💡 Setelah mentransfer, pesanan Anda akan diverifikasi dan diproses oleh tim kami.
-          </p>
+    <div className="bg-[#f4f7fc] min-h-[80vh] flex items-center justify-center py-12 px-4">
+      <div className="bg-white max-w-lg w-full p-8 md:p-12 rounded-sm shadow-sm border border-gray-200 text-center">
+        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+          <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
         </div>
-      )}
+        <h1 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-widest">Pesanan Tersimpan</h1>
+        <p className="text-gray-500 text-sm mb-8 leading-relaxed">Pesanan Anda <strong>{orderId}</strong> sedang menunggu pembayaran. Sistem kami menggunakan pembayaran manual via WhatsApp untuk verifikasi keamanan tingkat tinggi.</p>
+        
+        <div className="bg-gray-50 p-6 border border-gray-200 rounded-sm mb-8">
+           <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Total Tagihan</p>
+           <p className="text-3xl font-black text-red-600">Rp {(order?.grand_total as number || 0).toLocaleString('id-ID')}</p>
+        </div>
 
-      <a href="/" className="inline-block bg-black text-white px-8 py-4 rounded-md font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-md">
-        Kembali ke Beranda
-      </a>
+        <a href={waLink} target="_blank" className="block w-full bg-green-500 text-white font-bold py-4 rounded-sm hover:bg-green-600 transition-colors uppercase tracking-widest text-sm shadow-md mb-4">
+           Konfirmasi & Bayar via WhatsApp
+        </a>
+        <a href="/account/orders" className="block text-sm font-bold text-gray-500 hover:text-black">Lihat Riwayat Pesanan</a>
+      </div>
     </div>
   )
 })
