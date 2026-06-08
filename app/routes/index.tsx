@@ -14,32 +14,60 @@ export default createRoute(async (c) => {
 
     // 1. WIDGET: HERO SLIDER (Banner Utama Atas)
     if (widget.widget_type === 'hero_slider') {
-  const slides = content.slides || []
-  if (slides.length === 0) return null
+      const slides = content.slides || []
+      if (slides.length === 0) return null
+      
+      // Buat ID unik untuk target slider
+      const sliderId = `hero-slider-${widget.id}`
 
-  return (
-    <section key={widget.id} className="w-full bg-white py-6 px-4 md:px-8">
-      {/* Container disamakan nilainya dengan featured_products agar sejajar rapi */}
-      <div className="max-w-7xl mx-auto overflow-hidden rounded-sm relative group shadow-sm">
-        <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide">
-          {slides.map((slide: any, idx: number) => (
-            <a key={idx} href={slide.link} className="flex-none w-full snap-center block">
-              <div className="w-full bg-gray-50">
-                {/* w-full h-auto memastikan gambar responsif secara proporsional tanpa tinggi statis */}
-                <img 
-                  src={slide.image} 
-                  alt={slide.title} 
-                  className="w-full h-auto object-cover object-center" 
-                  loading={idx === 0 ? "eager" : "lazy"} 
-                />
-              </div>
-            </a>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
+      return (
+        <section key={widget.id} className="w-full bg-white py-6 px-4 md:px-8">
+          <div className="max-w-7xl mx-auto overflow-hidden rounded-sm relative group shadow-sm">
+            
+            {/* Tambahkan scroll-smooth agar perpindahannya beranimasi */}
+            <div id={sliderId} className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-smooth">
+              {slides.map((slide: any, idx: number) => (
+                <a key={idx} href={slide.link} className="flex-none w-full snap-center block">
+                  <div className="w-full bg-gray-50">
+                    <img 
+                      src={slide.image} 
+                      alt={slide.title} 
+                      className="w-full h-auto object-cover object-center" 
+                      loading={idx === 0 ? "eager" : "lazy"} 
+                    />
+                  </div>
+                </a>
+              ))}
+            </div>
+
+            {/* Skrip Javascript untuk Auto-Play */}
+            <script dangerouslySetInnerHTML={{__html: `
+              (function() {
+                const slider = document.getElementById('${sliderId}');
+                if (!slider) return;
+                
+                const totalSlides = ${slides.length};
+                if (totalSlides <= 1) return; // Tidak perlu auto-play jika hanya 1 banner
+                
+                let currentIndex = 0;
+                
+                setInterval(() => {
+                  // Kembali ke gambar pertama jika sudah di ujung
+                  currentIndex = (currentIndex + 1) % totalSlides;
+                  
+                  // Geser posisi scroll secara otomatis
+                  slider.scrollTo({
+                    left: slider.clientWidth * currentIndex,
+                    behavior: 'smooth'
+                  });
+                }, 4000); // Ganti angka 4000 untuk mengatur jeda waktu (4000 = 4 detik)
+              })();
+            `}} />
+
+          </div>
+        </section>
+      )
+    }
 
     // 2. WIDGET: ICON NAV (Kategori / Brand Bundar)
     if (widget.widget_type === 'icon_nav') {
