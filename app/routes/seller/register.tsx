@@ -9,12 +9,10 @@ export default createRoute(async (c) => {
   const existingStore = await db.prepare("SELECT id FROM stores WHERE user_id = ?").bind(user.id).first()
   if (existingStore) return c.redirect('/seller')
 
-  // Ambil nomor WA admin
-  const settingsRecord = await db.prepare("SELECT config_json FROM store_settings WHERE id = 'GLOBAL'").first()
-  let settings: any = {}
-  if (settingsRecord && settingsRecord.config_json) settings = JSON.parse(settingsRecord.config_json as string)
+  // KONSISTEN: Ambil WhatsApp Admin dari platform_settings
+  const settings = await db.prepare("SELECT whatsapp_number FROM platform_settings WHERE id = 1").first()
+  const waNumber = settings?.whatsapp_number || '6281234567890'
   
-  const waNumber = settings.whatsapp_number || '6281234567890'
   const waMessage = encodeURIComponent(`Halo Admin ShopinId,\n\nSaya ingin mendaftar sebagai Vendor/Boutique di marketplace. Berikut email akun saya: ${user.email}\n\nMohon instruksi selanjutnya.`);
   const waLink = `https://wa.me/${waNumber}?text=${waMessage}`;
 
