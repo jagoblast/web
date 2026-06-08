@@ -14,29 +14,32 @@ export default createRoute(async (c) => {
 
     // 1. WIDGET: HERO SLIDER (Banner Utama Atas)
     if (widget.widget_type === 'hero_slider') {
-      const slides = content.slides || []
-      if (slides.length === 0) return null
-      
-      return (
-        <section key={widget.id} className="w-full bg-gray-100 relative group overflow-hidden">
-          <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide">
-            {slides.map((slide: any, idx: number) => (
-              <a key={idx} href={slide.link} className="flex-none w-full snap-center relative block">
-                <div className="w-full h-[400px] md:h-[500px] lg:h-[650px] bg-gray-200">
-                  <img src={slide.image} alt={slide.title} className="w-full h-full object-cover object-center" loading={idx === 0 ? "eager" : "lazy"} />
-                </div>
-                {/* Teks Overlay Slider Opsional */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                   <h2 className="text-white text-4xl md:text-6xl font-black uppercase tracking-widest drop-shadow-lg text-center px-4">
-                      {slide.title}
-                   </h2>
-                </div>
-              </a>
-            ))}
-          </div>
-        </section>
-      )
-    }
+  const slides = content.slides || []
+  if (slides.length === 0) return null
+
+  return (
+    <section key={widget.id} className="w-full bg-white py-6 px-4 md:px-8">
+      {/* Container disamakan nilainya dengan featured_products agar sejajar rapi */}
+      <div className="max-w-7xl mx-auto overflow-hidden rounded-sm relative group shadow-sm">
+        <div className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide">
+          {slides.map((slide: any, idx: number) => (
+            <a key={idx} href={slide.link} className="flex-none w-full snap-center block">
+              <div className="w-full bg-gray-50">
+                {/* w-full h-auto memastikan gambar responsif secara proporsional tanpa tinggi statis */}
+                <img 
+                  src={slide.image} 
+                  alt={slide.title} 
+                  className="w-full h-auto object-cover object-center" 
+                  loading={idx === 0 ? "eager" : "lazy"} 
+                />
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
 
     // 2. WIDGET: ICON NAV (Kategori / Brand Bundar)
     if (widget.widget_type === 'icon_nav') {
