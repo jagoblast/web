@@ -1,70 +1,64 @@
 import { createRoute } from 'honox/factory'
-import { getAuthUser } from '../../../utils/auth' // Sesuaikan path utils jika perlu
+import { getAuthUser } from '../../../utils/auth'
 
-// PERBAIKAN KRITIS: Harus export const POST, bukan export default!
 export const POST = createRoute(async (c) => {
   const db = c.env.DB
   
-  // Keamanan: Pastikan hanya super admin yang bisa mengubah pengaturan ini
   const user = await getAuthUser(c)
   if (!user || user.role !== 'admin') {
     return c.text('403 Forbidden: Akses Ditolak.', 403)
   }
 
   const formData = await c.req.formData()
-  const section = formData.get('section') as string // Mendeteksi blok mana yang dikirim
+  const section = formData.get('section') as string
   
-  // Ambil konfigurasi saat ini dari database
-  const currentRecord = await db.prepare("SELECT config_json FROM store_settings WHERE id = 'GLOBAL'").first()
-  let currentSettings: any = {}
-  if (currentRecord && currentRecord.config_json) {
-    currentSettings = JSON.parse(currentRecord.config_json as string)
-  }
+  await db.prepare("INSERT OR IGNORE INTO platform_settings (id) VALUES (1)").run()
 
-  // Siapkan objek baru yang menyalin data lama agar tidak hilang
-  let newSettings = { ...currentSettings }
-
-  // PROSES PENYIMPANAN BERDASARKAN BLOK YANG DIKLIK
   if (section === 'general') {
-    newSettings.store_name = formData.get('store_name') as string
+    const feeType = formData.get('admin_fee_type') as string
+    const feeValue = parseInt(formData.get('admin_fee_value') as string, 10) || 0
+    const whatsapp = formData.get('whatsapp_number') as string
+    
+    // Pengaman: Otomatis tambahkan kolom whatsapp_number jika belum ada di D1
+    try { await db.prepare("ALTER TABLE platform_settings ADD COLUMN whatsapp_number TEXT").run() } catch(e) {}
+
+    await db.prepare(`UPDATE platform_settings SET admin_fee_type = ?, admin_fee_value = ?, whatsapp_number = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1`)
+      .bind(feeType, feeValue, whatsapp).run()
   } 
   else if (section === 'banks') {
-    // Menangkap array input dari form dinamis Tambah Bank
     const bankNames = formData.getAll('bank_name[]') as string[]
     const bankAccNums = formData.getAll('bank_account_number[]') as string[]
     const bankAccNames = formData.getAll('bank_account_name[]') as string[]
     
     const banks = []
     for(let i = 0; i < bankNames.length; i++) {
-      if(bankNames[i] || bankAccNums[i] || bankAccNames[i]) {
-        banks.push({
-          bank_name: bankNames[i],
-          bank_account_number: bankAccNums[i],
-          bank_account_name: bankAccNames[i]
-        })
+      if(bankNames[i]) {
+        banks.push({ bank_name: bankNames[i], bank_account_number: bankAccNums[i], bank_account_name: bankAccNames[i] })
       }
     }
-    newSettings.banks = banks
+    
+    try { await db.prepare("ALTER TABLE platform_settings ADD COLUMN manual_banks_json TEXT DEFAULT '[]'").run() } catch(e) {}
+    
+    await db.prepare("UPDATE platform_settings SET manual_banks_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1")
+      .bind(JSON.stringify(banks)).run()
   } 
   else if (section === 'cloudinary') {
-    const incomingSecret = formData.get('cloudinary_api_secret') as string
-    const finalSecret = incomingSecret ? incomingSecret : currentSettings.cloudinary_api_secret
+    const cloudName = formData.get('cloudinary_cloud_name') as string
+    const apiKey = formData.get('cloudinary_api_key') as string
+    const apiSecret = formData.get('cloudinary_api_secret') as string
 
-    newSettings.cloudinary_cloud_name = formData.get('cloudinary_cloud_name') as string
-    newSettings.cloudinary_api_key = formData.get('cloudinary_api_key') as string
-    newSettings.cloudinary_api_secret = finalSecret
+    if (apiSecret) {
+      await db.prepare(`UPDATE platform_settings SET cloudinary_cloud_name = ?, cloudinary_api_key = ?, cloudinary_api_secret = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1`)
+        .bind(cloudName, apiKey, apiSecret).run()
+    } else {
+      await db.prepare(`UPDATE platform_settings SET cloudinary_cloud_name = ?, cloudinary_api_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1`)
+        .bind(cloudName, apiKey).run()
+    }
   }
   else if (section === 'rajaongkir') {
-    newSettings.rajaongkir_api_key = formData.get('rajaongkir_api_key') as string
+    const key = formData.get('rajaongkir_api_key') as string
+    await db.prepare("UPDATE platform_settings SET rajaongkir_api_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1").bind(key).run()
   }
 
-  // Simpan kembali ke D1 menggunakan UPSERT
-  await db.prepare(`
-    INSERT INTO store_settings (id, config_json) 
-    VALUES ('GLOBAL', ?) 
-    ON CONFLICT(id) DO UPDATE SET config_json = excluded.config_json, updated_at = CURRENT_TIMESTAMP
-  `).bind(JSON.stringify(newSettings)).run()
-
-  // Mengembalikan Response Redirect (Tidak akan undefined lagi)
   return c.redirect('/admin/settings?success=1')
 })
