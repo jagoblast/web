@@ -1,78 +1,98 @@
-import { createRoute } from 'honox/factory';
+import { createRoute } from 'honox/factory'
+import { getAuthUser } from '../../utils/auth'
+import { generateId } from '../../utils/admin_utils'
 
-export default createRoute(async (c) => {
-  let images: any[] = [];
+// --- HANDLER POST: MENYIMPAN HASIL URL CLOUDINARY KE DATABASE ---
+export const POST = createRoute(async (c) => {
+  const db = c.env.DB
+  const user = await getAuthUser(c)
+  
+  if (!user || user.role !== 'admin') return c.redirect('/login')
 
-  try {
-    // Membaca langsung dari tabel database yang sekarang sudah dicatat oleh api/upload
-    const { results } = await c.env.DB.prepare("SELECT * FROM media_assets ORDER BY created_at DESC").all();
-    images = results || [];
-  } catch (e) {
-    console.log("Database table media_assets not found or empty.");
+  const formData = await c.req.formData()
+  const fileUrl = formData.get('file_url') as string
+  const id = 'MED-' + generateId().substring(0, 8).toUpperCase()
+
+  if (!fileUrl) {
+    return c.redirect('/admin/media?err=missing_url')
   }
 
+  try {
+    // Simpan data url file ke tabel media platform
+    await db.prepare(`
+      INSERT INTO media (id, url, created_at) 
+      VALUES (?, ?, CURRENT_TIMESTAMP)
+    `).bind(id, fileUrl).run()
+
+    return c.redirect('/admin/media?success=1')
+  } catch (error) {
+    return c.redirect('/admin/media?err=db_error')
+  }
+})
+
+// --- HANDLER GET: TAMPILKAN GALERI MEDIA ---
+export default createRoute(async (c) => {
+  const db = c.env.DB
+  const user = await getAuthUser(c)
+  
+  if (!user || user.role !== 'admin') return c.redirect('/login')
+
+  // Mengambil data seluruh item galeri yang tersimpan
+  const { results: galleryItems } = await db.prepare("SELECT * FROM media ORDER BY created_at DESC").all()
+  
+  const success = c.req.query('success')
+  const error = c.req.query('err')
+
   return c.render(
-    <div class="max-w-[1200px] mx-auto py-10 px-6">
-      <div class="mb-12 border-b border-neutral-100 pb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="max-w-6xl mx-auto py-10 px-4 space-y-8">
+      
+      <div className="flex justify-between items-center bg-white p-6 rounded-sm shadow-sm border border-gray-200">
         <div>
-          <h1 class="text-3xl font-serif italic tracking-widest uppercase">Media Library</h1>
-          <p class="text-[10px] text-neutral-400 uppercase tracking-[0.3em] mt-2">Upload assets directly to CDN</p>
+          <h1 className="text-xl md:text-2xl font-bold text-gray-900 uppercase tracking-widest">Galeri Media Admin</h1>
+          <p className="text-sm text-gray-500 mt-1">Unggah dan kelola aset gambar CDN Cloudinary secara terpusat.</p>
+        </div>
+        <div>
+          {/* Tombol pemicu input file AJAX */}
+          <input type="file" id="media_file_input" accept="image/*" className="hidden" onChange="uploadToCloudinary()" />
+          <button 
+            type="button" 
+            onClick="document.getElementById('media_file_input').click()"
+            className="bg-black text-white px-6 py-3 rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-gray-800 transition shadow-sm"
+          >
+            + Unggah Gambar Baru
+          </button>
         </div>
       </div>
 
-      {/* UPLOAD SECTION */}
-      <div class="bg-neutral-50 border border-neutral-100 p-8 mb-16 shadow-sm">
-        <h3 class="text-[10px] font-bold uppercase tracking-[0.3em] mb-6">Upload New Image</h3>
-        <form id="upload-form" class="flex flex-col md:flex-row items-center gap-6">
-          <input 
-            type="file" 
-            id="file-input"
-            accept="image/*" 
-            class="block w-full text-xs text-neutral-500 file:mr-4 file:py-3 file:px-6 file:rounded-none file:border-0 file:text-[9px] file:font-bold file:uppercase file:tracking-widest file:bg-black file:text-white hover:file:bg-neutral-800 transition cursor-pointer bg-white border border-neutral-200 p-2"
-            required
-          />
-          <button type="submit" id="upload-btn" class="w-full md:w-auto shrink-0 bg-neutral-200 text-black px-10 py-4 text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-neutral-300 transition-all">
-            Upload Asset
-          </button>
-        </form>
-        <p id="upload-status" class="text-[10px] uppercase tracking-widest text-green-600 mt-4 hidden font-bold">Uploading...</p>
+      {/* Indikator Loading Status */}
+      <div id="upload_loader" className="hidden bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-sm text-sm font-medium animate-pulse">
+        Sedang mengunggah file gambar ke server Cloudinary, mohon tunggu sebentar...
       </div>
 
-      {/* GALLERY SECTION */}
-      <div class="space-y-6">
-        <h3 class="text-[10px] font-bold uppercase tracking-[0.3em] border-b border-neutral-100 pb-4">Asset Gallery</h3>
-        
-        {images.length === 0 ? (
-          <div class="py-20 text-center border border-neutral-100 bg-neutral-50">
-            <p class="text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-400">No images uploaded yet. Upload your first banner above.</p>
-          </div>
+      {success && <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-sm text-sm font-medium">✓ Gambar baru berhasil diunggah dan disimpan ke dalam galeri.</div>}
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-sm text-sm font-medium">⚠ Terjadi kesalahan sistem saat memproses atau menyimpan berkas gambar.</div>}
+
+      {/* Form Tersembunyi Untuk Submit URL Cloudinary ke SQLite */}
+      <form id="save_media_form" action="/admin/media" method="POST" className="hidden">
+        <input type="hidden" name="file_url" id="cloudinary_url_holder" />
+      </form>
+
+      {/* RENDER GRID ITEM GAMBAR */}
+      <div className="bg-white p-6 rounded-sm border border-gray-200 shadow-sm">
+        {galleryItems.length === 0 ? (
+          <div className="text-center py-16 text-gray-400 italic text-sm">Belum ada aset gambar yang diunggah ke dalam galeri media.</div>
         ) : (
-          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {images.map((img) => (
-              <div class="group border border-neutral-100 bg-white shadow-sm flex flex-col relative">
-                <div class="aspect-square w-full overflow-hidden bg-neutral-50 border-b border-neutral-100 relative flex items-center justify-center">
-                  
-                  {/* Load dari public_url yang tersimpan di database */}
-                  <img src={img.public_url} class="w-full h-full object-cover" loading="lazy" alt={img.file_name} />
-                  
-                  <button type="button" onclick={`deleteImage('${img.id}')`} class="absolute top-2 right-2 bg-red-500 text-white text-[8px] font-bold uppercase tracking-widest px-2 py-1 opacity-0 group-hover:opacity-100 transition-all shadow-md">
-                    DEL
-                  </button>
-                </div>
-                <div class="p-4 flex flex-col justify-between flex-1 space-y-4">
-                  <div>
-                    <p class="text-[8px] font-bold text-neutral-400 uppercase tracking-widest truncate" title={img.file_name}>
-                      {img.file_name}
-                    </p>
-                    <p class="text-[8px] text-neutral-300 mt-1">{img.size_kb.toFixed(1)} KB</p>
-                  </div>
-                  
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {galleryItems.map((item: any) => (
+              <div key={item.id} className="group border border-gray-100 rounded-sm overflow-hidden bg-gray-50 relative aspect-square flex items-center justify-center p-2 shadow-sm hover:shadow-md transition">
+                <img src={item.url} alt="Media Asset" className="object-contain w-full h-full" loading="lazy" />
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center p-2">
                   <button 
                     type="button" 
-                    onclick={`copyUrl(this, '${img.public_url}')`}
-                    class="w-full border border-black py-2 text-[8px] font-bold uppercase tracking-[0.2em] hover:bg-black hover:text-white transition-all"
+                    onClick={`navigator.clipboard.writeText('${item.url}'); alert('URL Gambar berhasil disalin ke clipboard!');`}
+                    className="bg-white text-black text-[9px] font-bold uppercase px-2 py-1.5 tracking-wider rounded-sm shadow hover:bg-gray-100"
                   >
-                    Copy URL
+                    Salin URL
                   </button>
                 </div>
               </div>
@@ -81,73 +101,49 @@ export default createRoute(async (c) => {
         )}
       </div>
 
-      <script dangerouslySetInnerHTML={{ __html: `
-        document.getElementById('upload-form').onsubmit = async (e) => {
-          e.preventDefault();
-          const fileInput = document.getElementById('file-input');
-          const status = document.getElementById('upload-status');
-          const btn = document.getElementById('upload-btn');
-          
-          if(!fileInput.files.length) return;
+      {/* JAVASCRIPT CLIENT AJAX UPLOAD */}
+      <script dangerouslySetInnerHTML={{__html: `
+        async function uploadToCloudinary() {
+          const fileInput = document.getElementById('media_file_input');
+          const file = fileInput.files[0];
+          if (!file) return;
 
-          status.style.display = 'block';
-          status.className = 'text-[10px] uppercase tracking-widest text-neutral-500 mt-4 font-bold';
-          status.innerText = 'Uploading to Server...';
-          btn.disabled = true;
+          const loader = document.getElementById('upload_loader');
+          const form = document.getElementById('save_media_form');
+          const urlHolder = document.getElementById('cloudinary_url_holder');
+
+          // Munculkan indikator pengunggahan gambar
+          loader.classList.remove('hidden');
 
           const formData = new FormData();
-          formData.append('file', fileInput.files[0]);
+          formData.append('file', file);
 
           try {
-            const res = await fetch('/api/upload', {
+            // Memanfaatkan API upload Cloudinary terpadu yang sudah kita miliki
+            const response = await fetch('/api/upload', {
               method: 'POST',
               body: formData
             });
-            const data = await res.json();
             
-            if(data.success) {
-              window.location.reload();
+            const result = await response.json();
+
+            if (result.success && result.url) {
+              // Masukkan URL ke input tersembunyi dan otomatis trigger submit form native
+              urlHolder.value = result.url;
+              form.submit();
             } else {
-              alert('Upload failed: ' + (data.message || 'Error'));
-              status.style.display = 'none';
-              btn.disabled = false;
+              alert('Gagal mengunggah media: ' + (result.message || 'Error repositori pihak ketiga'));
+              loader.classList.add('hidden');
             }
-          } catch(err) {
-            alert('Network error. Check your connection.');
-            status.style.display = 'none';
-            btn.disabled = false;
+          } catch (err) {
+            alert('Gangguan koneksi jaringan terdeteksi saat melakukan proses unggah gambar.');
+            loader.classList.add('hidden');
+          } finally {
+            fileInput.value = '';
           }
-        };
-
-        window.copyUrl = function(btn, url) {
-          navigator.clipboard.writeText(url).then(() => {
-            const originalText = btn.innerText;
-            btn.innerText = 'COPIED!';
-            btn.classList.add('bg-black', 'text-white');
-            setTimeout(() => {
-              btn.innerText = originalText;
-              btn.classList.remove('bg-black', 'text-white');
-            }, 2000);
-          });
-        };
-
-        window.deleteImage = async function(id) {
-          if(!confirm('Remove this asset from database?')) return;
-          
-          const res = await fetch('/api/media-delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id })
-          });
-          
-          if(res.ok) {
-            window.location.reload();
-          } else {
-            alert('Failed to delete asset.');
-          }
-        };
+        }
       `}} />
-    </div>,
-    { title: 'Media Library | Admin' }
-  );
-});
+
+    </div>
+  )
+})
