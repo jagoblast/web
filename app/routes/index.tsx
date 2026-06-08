@@ -19,12 +19,13 @@ export default createRoute(async (c) => {
       
       const sliderId = `hero-slider-${widget.id}`
       const dotsId = `hero-dots-${widget.id}`
+      const prevBtnId = `hero-prev-${widget.id}`
+      const nextBtnId = `hero-next-${widget.id}`
 
       return (
         <section key={widget.id} className="w-full bg-white py-6 px-4 md:px-8">
           <div className="max-w-7xl mx-auto rounded-sm relative group shadow-sm overflow-hidden">
             
-            {/* Wrapper Relative untuk menahan absolute dots */}
             <div className="relative w-full">
               {/* Slider Container */}
               <div id={sliderId} className="flex overflow-x-auto snap-x snap-mandatory scrollbar-hide scroll-smooth">
@@ -42,6 +43,28 @@ export default createRoute(async (c) => {
                 ))}
               </div>
 
+              {/* Navigasi Panah Kiri */}
+              <button 
+                id={prevBtnId} 
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center shadow-md z-10 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 scale-90 hover:scale-100"
+                aria-label="Previous Slide"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+              
+              {/* Navigasi Panah Kanan */}
+              <button 
+                id={nextBtnId} 
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 hover:bg-white text-gray-800 rounded-full flex items-center justify-center shadow-md z-10 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 scale-90 hover:scale-100"
+                aria-label="Next Slide"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
+
               {/* Dot Indicators */}
               <div id={dotsId} className="absolute bottom-4 left-0 right-0 flex justify-center space-x-2 z-10">
                 {slides.map((_, idx) => (
@@ -58,25 +81,30 @@ export default createRoute(async (c) => {
               </div>
             </div>
 
-            {/* Skrip Javascript untuk Auto-Play & Dot Navigation */}
+            {/* Skrip Javascript untuk Auto-Play & Navigation */}
             <script dangerouslySetInnerHTML={{__html: `
               (function() {
                 const slider = document.getElementById('${sliderId}');
                 const dotsContainer = document.getElementById('${dotsId}');
-                if (!slider || !dotsContainer) return;
+                const prevBtn = document.getElementById('${prevBtnId}');
+                const nextBtn = document.getElementById('${nextBtnId}');
                 
-                const dots = dotsContainer.querySelectorAll('button');
+                if (!slider) return;
+                
                 const totalSlides = ${slides.length};
                 if (totalSlides <= 1) {
-                  dotsContainer.style.display = 'none'; // Sembunyikan titik jika cuma 1 gambar
+                  if (dotsContainer) dotsContainer.style.display = 'none';
+                  if (prevBtn) prevBtn.style.display = 'none';
+                  if (nextBtn) nextBtn.style.display = 'none';
                   return; 
                 }
                 
                 let currentIndex = 0;
                 let autoPlayTimer;
                 
-                // Fungsi untuk merubah tampilan titik aktif
                 const updateDots = (index) => {
+                  if (!dotsContainer) return;
+                  const dots = dotsContainer.querySelectorAll('button');
                   dots.forEach((dot, i) => {
                     if (i === index) {
                       dot.className = 'w-2.5 h-2.5 rounded-full transition-all duration-300 shadow-sm bg-white scale-125';
@@ -86,7 +114,6 @@ export default createRoute(async (c) => {
                   });
                 };
 
-                // Fungsi untuk pindah slide
                 const goToSlide = (index) => {
                   currentIndex = index;
                   slider.scrollTo({
@@ -94,19 +121,36 @@ export default createRoute(async (c) => {
                     behavior: 'smooth'
                   });
                   updateDots(currentIndex);
-                  resetTimer(); // Reset timer saat diklik agar tidak bentrok
+                  resetTimer();
                 };
 
-                // Event listener untuk klik pada titik
-                dots.forEach((dot, index) => {
-                  dot.addEventListener('click', () => {
-                    goToSlide(index);
+                // Event Listener Panah Navigasi
+                if (prevBtn) {
+                  prevBtn.addEventListener('click', () => {
+                    const prevIndex = (currentIndex - 1 + totalSlides) % totalSlides;
+                    goToSlide(prevIndex);
                   });
-                });
+                }
 
-                // Sinkronisasi titik jika user men-swipe manual di HP
+                if (nextBtn) {
+                  nextBtn.addEventListener('click', () => {
+                    const nextIndex = (currentIndex + 1) % totalSlides;
+                    goToSlide(nextIndex);
+                  });
+                }
+
+                // Event Listener Dot Navigasi
+                if (dotsContainer) {
+                  const dots = dotsContainer.querySelectorAll('button');
+                  dots.forEach((dot, index) => {
+                    dot.addEventListener('click', () => {
+                      goToSlide(index);
+                    });
+                  });
+                }
+
+                // Sinkronisasi manual swipe
                 slider.addEventListener('scroll', () => {
-                  // Gunakan pembulatan untuk mencari tahu index mana yang sedang dominan di layar
                   const scrollPosition = slider.scrollLeft;
                   const slideIndex = Math.round(scrollPosition / slider.clientWidth);
                   
@@ -117,7 +161,6 @@ export default createRoute(async (c) => {
                   }
                 }, { passive: true });
 
-                // Logic Auto-play
                 const startTimer = () => {
                   autoPlayTimer = setInterval(() => {
                     const nextIndex = (currentIndex + 1) % totalSlides;
@@ -130,7 +173,6 @@ export default createRoute(async (c) => {
                   startTimer();
                 };
 
-                // Mulai auto-play pertama kali
                 startTimer();
               })();
             `}} />
