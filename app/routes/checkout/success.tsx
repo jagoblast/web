@@ -9,17 +9,12 @@ export default createRoute(async (c) => {
   const orderId = c.req.query('order_id')
   if (!orderId) return c.redirect('/')
 
-  // Ambil pengaturan toko untuk nomor WhatsApp admin
-  const settingsRecord = await db.prepare("SELECT config_json FROM store_settings WHERE id = 'GLOBAL'").first()
-  let settings: any = {}
-  if (settingsRecord && settingsRecord.config_json) {
-    settings = JSON.parse(settingsRecord.config_json as string)
-  }
-  const waNumber = settings.whatsapp_number || '6281234567890'
+  // KONSISTEN: Ambil WhatsApp Admin dari platform_settings
+  const settings = await db.prepare("SELECT whatsapp_number FROM platform_settings WHERE id = 1").first()
+  const waNumber = settings?.whatsapp_number || '6281234567890'
 
   const order = await db.prepare("SELECT grand_total FROM orders WHERE id = ?").bind(orderId).first()
 
-  // Format Pesan WhatsApp
   const waMessage = encodeURIComponent(`Halo Admin ShopinId,\n\nSaya telah melakukan pesanan dengan detail berikut:\n*ID Pesanan:* ${orderId}\n*Total Tagihan:* Rp ${(order?.grand_total as number || 0).toLocaleString('id-ID')}\n\nMohon informasi rekening untuk pembayaran manual. Terima kasih.`);
   const waLink = `https://wa.me/${waNumber}?text=${waMessage}`;
 
