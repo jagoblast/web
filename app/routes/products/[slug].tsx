@@ -3,90 +3,75 @@ import { createRoute } from 'honox/factory'
 export default createRoute(async (c) => {
   const db = c.env.DB
   const slug = c.req.param('slug')
-  
-  const product = await db.prepare("SELECT * FROM products WHERE slug = ?").bind(slug).first()
-  if (!product) return c.redirect('/products')
 
-  const images = JSON.parse((product.images_json as string) || '[]')
-  const mainImage = images[0] || '/placeholder.jpg'
+  const product = await db.prepare(`
+    SELECT p.*, c.name as category_name, s.name as store_name 
+    FROM products p
+    LEFT JOIN categories c ON p.category_id = c.id
+    LEFT JOIN stores s ON p.store_id = s.id
+    WHERE p.slug = ? AND p.is_active = 1
+  `).bind(slug).first()
+
+  if (!product) return c.redirect('/404')
+
+  // Parse gambar Cloudinary dengan aman
+  let images: string[] = []
+  try {
+    images = JSON.parse((product.images_json as string) || '[]')
+  } catch (e) {
+    images = ['/placeholder.jpg']
+  }
+  if (images.length === 0) images = ['/placeholder.jpg']
 
   return c.render(
-    <div className="w-full bg-[#f4f7fc] py-10 px-4 md:px-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="bg-white min-h-screen py-10 px-4">
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10">
         
-        {/* Kolom Atas: Gambar dan Aksi */}
-        <div className="bg-white p-6 md:p-10 rounded-sm shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-10">
-          
-          {/* Kiri: Gambar Produk Utama */}
-          <div className="bg-gray-50 flex items-center justify-center p-4 border border-gray-100 relative aspect-square">
-            <img src={mainImage} alt={product.name as string} className="object-contain w-full h-full max-h-[500px]" />
+        {/* --- AREA GALERI GAMBAR --- */}
+        <div className="space-y-4">
+          {/* Gambar Utama */}
+          <div className="w-full aspect-[4/5] bg-gray-100 rounded-sm overflow-hidden border border-gray-200">
+            <img id="main-product-image" src={images[0]} alt={product.name as string} className="w-full h-full object-cover" />
           </div>
-
-          {/* Kanan: Detail & Aksi */}
-          <div className="flex flex-col pt-4">
-            <h1 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
-              {product.name}
-            </h1>
-            <div className="flex text-amber-400 text-sm mb-4">
-              ★★★★★ <span className="text-gray-400 ml-2 text-xs">(120 Ulasan)</span>
+          {/* Thumbnail Galeri */}
+          {images.length > 1 && (
+            <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-hide">
+              {images.map((img, idx) => (
+                <button key={idx} onClick={`document.getElementById('main-product-image').src='${img}'`} className="w-20 h-24 flex-shrink-0 border border-gray-200 rounded-sm overflow-hidden hover:border-black transition-colors focus:outline-none">
+                  <img src={img} className="w-full h-full object-cover" />
+                </button>
+              ))}
             </div>
-
-            <div className="border-t border-b py-4 my-4 border-gray-100">
-              <span className="text-sm text-gray-500 mr-4">Dijual oleh:</span>
-              <span className="bg-pink-100 text-pink-700 px-3 py-1 text-xs rounded-full font-bold">ShopinId Official</span>
-            </div>
-
-            <div className="mb-6 flex items-end">
-              <span className="text-sm text-gray-500 mr-6 mb-1">Harga:</span>
-              <span className="text-3xl font-black text-gray-900 tracking-tight">
-                Rp {(product.price as number).toLocaleString('id-ID')}
-              </span>
-            </div>
-
-            <div className="flex items-center mb-8">
-               <span className="text-sm text-gray-500 mr-6">Kuantitas:</span>
-               <div className="flex items-center border border-gray-300 rounded-md">
-                 <button className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-gray-600">-</button>
-                 <input type="text" value="1" readOnly className="w-12 text-center text-sm font-bold border-l border-r border-gray-300 py-1" />
-                 <button className="px-3 py-1 bg-gray-50 hover:bg-gray-100 text-gray-600">+</button>
-               </div>
-               <span className="text-xs text-gray-400 ml-4">({product.stock} Tersedia)</span>
-            </div>
-
-            <div className="flex space-x-4 mt-auto">
-              {/* Note: Logic tambah ke cart JS perlu diimplementasikan di client.ts */}
-              <button 
-                data-id={product.id}
-                data-price={product.price}
-                data-name={product.name}
-                className="add-to-cart-btn flex-1 bg-pink-100 text-pink-700 font-bold py-3 px-4 rounded hover:bg-pink-200 transition-colors border border-pink-200"
-              >
-                Tambah ke Keranjang
-              </button>
-              <button className="flex-1 bg-black text-white font-bold py-3 px-4 rounded hover:bg-gray-800 transition-colors uppercase tracking-wide">
-                Beli Sekarang
-              </button>
-            </div>
-            
-            <div className="mt-8 border-t border-gray-100 pt-4 flex flex-col space-y-2">
-              <p className="text-xs text-gray-500 flex items-center">
-                <span className="text-green-500 mr-2">🛡️</span> Pengembalian Dana: 30 Days Cash Back Guarantee
-              </p>
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Tab Deskripsi Bawah */}
-        <div className="bg-white rounded-sm shadow-sm border border-gray-100">
-          <div className="flex border-b border-gray-100">
-            <button className="px-8 py-4 font-bold text-black border-b-2 border-black">Deskripsi</button>
-            <button className="px-8 py-4 font-medium text-gray-500 hover:text-black">Ulasan</button>
+        {/* --- AREA INFO PRODUK --- */}
+        <div className="flex flex-col">
+          <div className="mb-6 border-b border-gray-100 pb-6">
+            <a href={`/store/${product.store_id}`} className="text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black mb-2 block">
+              Boutique: {product.store_name || 'ShopinId Direct'}
+            </a>
+            <h1 className="text-3xl font-black text-gray-900 mb-2 leading-tight uppercase tracking-tight">{product.name}</h1>
+            <p className="text-2xl font-bold text-red-600 mb-4">Rp {(product.price as number).toLocaleString('id-ID')}</p>
+            <div className="flex items-center space-x-4 text-xs font-bold uppercase tracking-wider text-gray-600 bg-gray-50 p-3 rounded-sm border border-gray-200 w-fit">
+              <span>Brand: <strong className="text-black">{product.brand}</strong></span>
+              <span>|</span>
+              <span>Kondisi: <strong className="text-black">{product.condition}</strong></span>
+              <span>|</span>
+              <span>Stok: <strong className="text-black">{product.stock}</strong></span>
+            </div>
           </div>
-          <div className="p-8 text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-            {product.description || "Belum ada deskripsi untuk produk ini."}
-          </div>
-        </div>
 
+          <div className="prose prose-sm text-gray-600 max-w-none mb-8" dangerouslySetInnerHTML={{ __html: product.description as string }} />
+
+          <form action="/checkout" method="GET" className="mt-auto">
+            {/* Sistem Checkout Sementara: Bawa ID via querystring/form */}
+            <input type="hidden" name="product_id" value={product.id as string} />
+            <button type="submit" disabled={product.stock === 0} className={`w-full py-4 rounded-sm font-bold uppercase tracking-widest text-sm shadow-md transition-colors ${product.stock === 0 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-black text-white hover:bg-gray-800'}`}>
+              {product.stock === 0 ? 'Stok Habis' : 'Beli Sekarang (Via WhatsApp)'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )
