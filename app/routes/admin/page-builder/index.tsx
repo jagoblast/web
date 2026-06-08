@@ -1,16 +1,13 @@
 import { createRoute } from 'honox/factory';
 
 export default createRoute(async (c) => {
-  // 1. Menangkap ID Halaman dari URL (Contoh: ?page_id=GLOBAL atau ID halaman custom)
   const pageId = c.req.query('page_id') || 'home';
   const db = c.env.DB;
   
-  // 2. Mengambil daftar widget spesifik untuk ID halaman tersebut
   const { results: widgets } = await db.prepare(
     "SELECT * FROM frontpage_widgets WHERE page_id = ? ORDER BY display_order ASC"
   ).bind(pageId).all();
 
-  // 3. Menentukan Judul Header Panel
   let builderTitle = "Homepage Builder";
   if (pageId === 'GLOBAL') {
     builderTitle = "Global Header & Footer";
@@ -20,7 +17,6 @@ export default createRoute(async (c) => {
 
   return c.render(
     <div class="max-w-[1100px] mx-auto py-10 px-6">
-      {/* HEADER PANEL */}
       <div class="flex justify-between items-end mb-8 border-b border-neutral-100 pb-8">
         <div>
           <h1 class="text-2xl font-bold uppercase tracking-[0.2em]">{builderTitle}</h1>
@@ -36,7 +32,6 @@ export default createRoute(async (c) => {
         </button>
       </div>
 
-      {/* TABS NAVIGASI EDITOR */}
       <div class="flex gap-4 mb-8 border-b border-neutral-200 pb-4">
         <a href="/admin/page-builder?page_id=home" 
            class={`text-[10px] font-bold uppercase tracking-widest px-4 py-2 transition ${pageId === 'home' ? 'bg-black text-white' : 'bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}>
@@ -53,7 +48,6 @@ export default createRoute(async (c) => {
         )}
       </div>
 
-      {/* LIST WIDGET (SORTABLE) */}
       <div id="sortable-widgets" class="space-y-4">
         {widgets.length === 0 ? (
           <div class="p-20 text-center border border-dashed border-neutral-200 rounded-lg">
@@ -62,7 +56,7 @@ export default createRoute(async (c) => {
           </div>
         ) : (
           widgets.map((widget) => {
-            let editFolder = widget.widget_type.replace('_', '-');
+            let editFolder = widget.widget_type.replace(/_/g, '-');
             if (widget.widget_type === 'custom_title' || widget.widget_type === 'custom_paragraph') {
               editFolder = 'custom-text';
             }
@@ -81,7 +75,7 @@ export default createRoute(async (c) => {
                   </div>
                   <div>
                     <span class="text-[9px] font-bold bg-neutral-100 px-2 py-1 uppercase tracking-widest text-neutral-500 rounded">
-                      {widget.widget_type.replace('_', ' ')}
+                      {widget.widget_type.replace(/_/g, ' ')}
                     </span>
                     <h3 class="text-sm font-bold mt-2 uppercase tracking-widest text-neutral-800">{widget.title}</h3>
                   </div>
@@ -115,14 +109,12 @@ export default createRoute(async (c) => {
         )}
       </div>
 
-      {/* MODAL: SELECT WIDGET TYPE */}
       <div id="add-widget-modal" class="fixed inset-0 bg-black/60 z-[100] hidden items-center justify-center p-6 backdrop-blur-sm">
         <div class="bg-white w-full max-w-4xl p-10 shadow-2xl space-y-8 animate-fadeIn">
           <h2 class="text-xl font-bold uppercase tracking-widest border-b pb-4 text-center">Select Widget Type</h2>
           
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar text-center">
             
-            {/* GLOBAL CALLS */}
             <button onclick="window.createWidget('header_widget')" class="p-6 border-2 border-purple-50 hover:border-purple-600 bg-purple-50/30 transition-all group">
               <p class="text-[10px] font-bold uppercase tracking-widest text-purple-900 group-hover:scale-105 transition-transform">Global Header</p>
               <p class="text-[8px] text-purple-400 uppercase mt-1 tracking-tighter">Panggil header dari setelan Global</p>
@@ -132,7 +124,6 @@ export default createRoute(async (c) => {
               <p class="text-[8px] text-purple-400 uppercase mt-1 tracking-tighter">Panggil footer dari setelan Global</p>
             </button>
 
-            {/* MEDIA */}
             <button onclick="window.createWidget('hero_slider')" class="p-6 border border-neutral-100 hover:border-black bg-white transition-all group">
               <p class="text-[10px] font-bold uppercase tracking-widest text-black group-hover:scale-105 transition-transform">Hero Slider</p>
             </button>
@@ -140,7 +131,12 @@ export default createRoute(async (c) => {
               <p class="text-[10px] font-bold uppercase tracking-widest text-black group-hover:scale-105 transition-transform">Promo Banner</p>
             </button>
 
-            {/* PRODUCTS */}
+            {/* --- PENAMBAHAN WIDGET BARU DI SINI --- */}
+            <button onclick="window.createWidget('all_products_grid')" class="p-6 border-2 border-green-50 hover:border-green-600 bg-green-50/30 transition-all group">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-green-900 group-hover:scale-105 transition-transform">All Products Grid</p>
+              <p class="text-[8px] text-green-600 uppercase mt-1 tracking-tighter">Katalog Produk + Paginasi</p>
+            </button>
+
             <button onclick="window.createWidget('new_arrivals')" class="p-6 border border-neutral-100 hover:border-black bg-white transition-all group">
               <p class="text-[10px] font-bold uppercase tracking-widest text-black group-hover:scale-105 transition-transform">New Arrivals</p>
             </button>
@@ -151,7 +147,6 @@ export default createRoute(async (c) => {
               <p class="text-[10px] font-bold uppercase tracking-widest text-black group-hover:scale-105 transition-transform">Brand Grid</p>
             </button>
 
-            {/* CONVERSION */}
             <button onclick="window.createWidget('pricing_block')" class="p-6 border border-blue-100 hover:border-blue-600 bg-blue-50/30 transition-all group">
               <p class="text-[10px] font-bold uppercase tracking-widest text-blue-900 group-hover:scale-105 transition-transform">Pricing Grid</p>
             </button>
@@ -162,7 +157,6 @@ export default createRoute(async (c) => {
               <p class="text-[10px] font-bold uppercase tracking-widest text-black group-hover:scale-105 transition-transform">Trust Badges</p>
             </button>
 
-            {/* CONTENT */}
             <button onclick="window.createWidget('custom_title')" class="p-6 border border-neutral-100 hover:border-black bg-white transition-all group">
               <p class="text-[10px] font-bold uppercase tracking-widest text-black group-hover:scale-105 transition-transform">Custom Title</p>
             </button>
@@ -189,9 +183,9 @@ export default createRoute(async (c) => {
         const currentPageId = urlParams.get('page_id') || 'home';
 
         window.createWidget = async function(type) {
-          // SINKRONISASI STRUKTUR DATA (Sangat Penting untuk Mega Menu)
           const contentMap = {
             hero_slider: { slides: [] },
+            all_products_grid: { per_page: 15, description: 'Temukan berbagai produk unggulan dari vendor terbaik kami.' }, // SETELAH DITAMBAHKAN
             new_arrivals: { description: '', button_text: 'Shop Now', product_ids: [] },
             icon_nav: { items: [] },
             promo_banner: { promos: [] },
@@ -199,13 +193,7 @@ export default createRoute(async (c) => {
             brand_grid: { brands: [] },
             trust_badges: { badges: [] },
             footer_widget: { layout: '4', columns: [] },
-            header_widget: { 
-              logo: '', 
-              logo_width: '180px', 
-              show_search: true, 
-              show_cart: true, 
-              menu: [] // Menggunakan 'menu' bukan 'links' agar sinkron dengan Mega Menu
-            },
+            header_widget: { logo: '', logo_width: '180px', show_search: true, show_cart: true, menu: [] },
             custom_title: { text: 'New Section Title', font_size: 'text-3xl', align: 'center', text_color: '#000000' },
             custom_paragraph: { text: 'Enter your text here...', font_size: 'text-sm', align: 'center', text_color: '#666666' },
             pricing_block: { layout: '3', plans: [] },
@@ -218,7 +206,7 @@ export default createRoute(async (c) => {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ 
                 widget_type: type,
-                title: type.replace('_', ' ').toUpperCase(),
+                title: type.replace(/_/g, ' ').toUpperCase(),
                 content_json: JSON.stringify(contentMap[type] || {}),
                 page_id: currentPageId
               })
