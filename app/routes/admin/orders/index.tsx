@@ -2,9 +2,34 @@ import { createRoute } from 'honox/factory';
 
 export default createRoute(async (c) => {
   let orders: any[] = [];
+  
+  // 1. Tangkap parameter status dari URL (contoh: ?status=pending)
+  const statusParam = c.req.query('status');
+
   try {
-    const { results } = await c.env.DB.prepare("SELECT * FROM orders ORDER BY created_at DESC").all();
-    orders = results || [];
+    if (statusParam) {
+      // 2. Logika Pemfilteran berdasarkan URL
+      if (statusParam === 'confirmed') {
+        // Menggabungkan status PAID dan COMPLETED sebagai 'Dikonfirmasi'
+        const { results } = await c.env.DB.prepare(
+          "SELECT * FROM orders WHERE status IN ('PAID', 'COMPLETED') ORDER BY created_at DESC"
+        ).all();
+        orders = results || [];
+      } else {
+        // Untuk pending, shipped, dan cancelled (ubah ke UPPERCASE agar cocok dengan value opsi Anda)
+        const dbStatus = statusParam.toUpperCase();
+        const { results } = await c.env.DB.prepare(
+          "SELECT * FROM orders WHERE status = ? ORDER BY created_at DESC"
+        ).bind(dbStatus).all();
+        orders = results || [];
+      }
+    } else {
+      // 3. Jika tidak ada parameter (diakses langsung /admin/orders), tampilkan semua
+      const { results } = await c.env.DB.prepare(
+        "SELECT * FROM orders ORDER BY created_at DESC"
+      ).all();
+      orders = results || [];
+    }
   } catch (e) {
     orders = [];
   }
@@ -16,7 +41,9 @@ export default createRoute(async (c) => {
       <div class="flex items-center justify-between mb-12 border-b border-neutral-100 pb-8">
         <div>
           <h1 class="text-3xl font-serif italic tracking-widest uppercase">Order Management</h1>
-          <p class="text-[10px] text-neutral-400 uppercase tracking-[0.3em] mt-2">View and manage customer transactions</p>
+          <p class="text-[10px] text-neutral-400 uppercase tracking-[0.3em] mt-2">
+            {statusParam ? `Menampilkan pesanan: ${statusParam.toUpperCase()}` : 'View and manage customer transactions'}
+          </p>
         </div>
       </div>
 
@@ -34,7 +61,7 @@ export default createRoute(async (c) => {
           <tbody>
             {orders.length === 0 ? (
               <tr>
-                <td colSpan={5} class="py-12 text-center text-[10px] uppercase tracking-widest text-neutral-400">No orders available.</td>
+                <td colSpan={5} class="py-12 text-center text-[10px] uppercase tracking-widest text-neutral-400">No orders available for this status.</td>
               </tr>
             ) : (
               orders.map((order) => (
@@ -79,6 +106,8 @@ export default createRoute(async (c) => {
             
             if(res.ok) {
               alert('Status updated successfully');
+              // Opsi tambahan: reload halaman agar data yang tidak sesuai filter hilang dari layar
+              // window.location.reload(); 
             } else {
               alert('Failed to update status');
             }
