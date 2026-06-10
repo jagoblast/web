@@ -9,6 +9,10 @@ export default jsxRenderer(({ children, title }) => {
         <title>{title ? `${title} | Admin ShopinId` : 'Admin Dashboard - ShopinId'}</title>
         {/* Tailwind CDN */}
         <script src="https://cdn.tailwindcss.com"></script>
+        <style dangerouslySetInnerHTML={{__html: `
+          /* Sembunyikan default panah summary pada browser Safari/Chrome lama */
+          details > summary::-webkit-details-marker { display: none; }
+        `}} />
       </head>
       <body className="bg-gray-100 min-h-screen font-sans antialiased text-gray-900">
         
@@ -49,13 +53,30 @@ export default jsxRenderer(({ children, title }) => {
               
               <p className="px-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Utama</p>
               <a href="/admin" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Dashboard Utama</a>
-              <a href="/admin/orders" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Semua Pesanan</a>
+              
+              {/* MENU PESANAN DENGAN DROPDOWN (Sesuai Screenshot 106) */}
+              <details className="group">
+                <summary className="flex justify-between items-center cursor-pointer px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors list-none">
+                  <span>Pesanan</span>
+                  <svg className="w-4 h-4 transform group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </summary>
+                <div className="mt-1 pl-4 space-y-1 border-l border-gray-700 ml-6 py-2">
+                  <a href="/admin/orders?status=pending" className="block pl-6 pr-4 py-2 rounded-md text-xs font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors relative before:content-[''] before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:w-1.5 before:h-1.5 before:bg-teal-500 before:rounded-full">Tertunda</a>
+                  <a href="/admin/orders?status=shipped" className="block pl-6 pr-4 py-2 rounded-md text-xs font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors relative before:content-[''] before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:w-1.5 before:h-1.5 before:bg-teal-500 before:rounded-full">Sedang Dikirim</a>
+                  <a href="/admin/orders?status=confirmed" className="block pl-6 pr-4 py-2 rounded-md text-xs font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors relative before:content-[''] before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:w-1.5 before:h-1.5 before:bg-teal-500 before:rounded-full">Dikonfirmasi</a>
+                  <a href="/admin/orders?status=cancelled" className="block pl-6 pr-4 py-2 rounded-md text-xs font-medium text-gray-400 hover:bg-gray-800 hover:text-white transition-colors relative before:content-[''] before:absolute before:left-2 before:top-1/2 before:-translate-y-1/2 before:w-1.5 before:h-1.5 before:bg-teal-500 before:rounded-full">Dibatalkan</a>
+                </div>
+              </details>
               
               <p className="px-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 mt-6">Manajemen Entitas</p>
               <a href="/admin/users" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Kelola Pengguna</a>
+              {/* TRANSAKSI DAN LEDGER DITAMBAHKAN DI SINI */}
+              <a href="/admin/transactions" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Transaksi & Ledger</a>
               <a href="/admin/stores" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Kelola Toko (Vendor)</a>
               <a href="/admin/finance" className="block px-4 py-2.5 rounded-md text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">Keuangan & Saldo</a>
-              {/* MENU BARU: Sinkronisasi Level Membership */}
+              
               <a href="/admin/membership-levels" className="block px-4 py-2.5 rounded-md text-sm font-bold text-green-400 hover:bg-gray-800 hover:text-green-300 transition-colors">Level Membership</a>
 
               <p className="px-4 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 mt-6">Katalog Global</p>
@@ -105,7 +126,7 @@ export default jsxRenderer(({ children, title }) => {
               </div>
             </header>
             
-            {/* Scrollable Main Content Space (Ukuran Lebar Maksimal Terkontrol) */}
+            {/* Scrollable Main Content Space */}
             <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50 custom-scrollbar">
               <div className="max-w-7xl mx-auto w-full">
                 {children}
