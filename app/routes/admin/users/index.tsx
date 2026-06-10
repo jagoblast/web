@@ -10,7 +10,7 @@ export const POST = createRoute(async (c) => {
   const formData = await c.req.formData()
   const action = formData.get('action') as string
 
-  // LOGIKA UTAMA: PROSES DEPOSIT MODAL HIJAU (Sesuai Video)
+  // LOGIKA UTAMA: PROSES DEPOSIT MODAL HIJAU
   if (action === 'deposit') {
     const walletId = formData.get('wallet_id') as string
     const jumlah = parseFloat(formData.get('jumlah') as string) || 0
@@ -35,7 +35,7 @@ export const POST = createRoute(async (c) => {
       `).bind(generateId(), walletId, jumlah, catatan).run()
     }
 
-    // 3. Catat Mutasi Kredit Promosi/Bonus ke Ledger (Terpisah untuk Buku Kas Promosi)
+    // 3. Catat Mutasi Kredit Promosi/Bonus ke Ledger
     if (promosi > 0) {
       await db.prepare(`
         INSERT INTO wallet_transactions (id, wallet_id, type, amount, description)
@@ -114,7 +114,7 @@ export default createRoute(async (c) => {
                   <td className="p-3">
                     <div className="font-bold text-gray-900 flex items-center gap-1.5">
                       {m.name}
-                      <span className="text-[10px] text-blue-600 font-extrabold bg-blue-50 px-1.5 py-0.2 rounded border border-blue-100">
+                      <span className="text-[10px] text-blue-600 font-extrabold bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
                         {m.level_name || 'LVL1'}
                       </span>
                     </div>
@@ -149,9 +149,17 @@ export default createRoute(async (c) => {
                   </td>
                   <td className="p-3 text-gray-400 whitespace-nowrap">{new Date(m.created_at).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute:'2-digit'})}</td>
                   
-                  {/* BUTTON ACTION DENGAN TOMBOL DEPOSIT MODAL HIJAU */}
+                  {/* BUTTON ACTION DENGAN TOMBOL DEPOSIT MODAL HIJAU & LINK AKTIF */}
                   <td className="p-3 text-right whitespace-nowrap sticky right-0 bg-white shadow-md flex justify-end space-x-1.5">
-                    <button type="button" className="bg-blue-50 text-blue-600 px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider hover:bg-blue-600 hover:text-white transition-colors">Pesan</button>
+                    
+                    {/* Tombol Pesan (WhatsApp / Email) */}
+                    <a 
+                      href={m.phone ? `https://wa.me/${m.phone.replace(/^0/, '62')}` : `mailto:${m.email}`} 
+                      target="_blank" 
+                      className="bg-blue-50 text-blue-600 px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider hover:bg-blue-600 hover:text-white transition-colors flex items-center"
+                    >
+                      Pesan
+                    </a>
                     
                     {/* Tombol pemicu Modal Hijau Deposit */}
                     <button 
@@ -163,7 +171,13 @@ export default createRoute(async (c) => {
                       Deposit
                     </button>
                     
-                    <button type="button" className="bg-gray-100 text-gray-600 px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider hover:bg-gray-200">Edit</button>
+                    {/* Tombol Edit Mengarah ke Halaman Khusus */}
+                    <a 
+                      href={`/admin/users/edit/${m.user_id}`} 
+                      className="bg-gray-100 text-gray-600 px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider hover:bg-gray-200 transition-colors flex items-center"
+                    >
+                      Edit
+                    </a>
                   </td>
                 </tr>
               )
@@ -173,14 +187,14 @@ export default createRoute(async (c) => {
       </div>
 
       {/* ==========================================
-          MODAL DRAWER POP-UP DEPOSIT (PERSIS VIDEO)
+          MODAL DRAWER POP-UP DEPOSIT
           ========================================== */}
       <div id="deposit-modal" className="fixed inset-0 bg-black/60 z-[999] hidden items-center justify-center p-4 backdrop-blur-sm animate-fadeIn">
         <div className="bg-white w-full max-w-md p-6 shadow-2xl rounded-sm border border-gray-100">
           
           <div className="border-b border-gray-100 pb-3 mb-5 flex justify-between items-center">
             <h3 className="text-base font-black text-gray-900 uppercase tracking-wide">Formulir Suntik Kredit / Deposit</h3>
-            <button onClick="window.closeDepositModal()" className="text-gray-400 hover:text-black">✕</button>
+            <button onClick="window.closeDepositModal()" className="text-gray-400 hover:text-black focus:outline-none">✕</button>
           </div>
 
           <div className="bg-gray-50 p-3 border rounded-sm mb-5 text-xs text-gray-600 space-y-1">
@@ -195,13 +209,13 @@ export default createRoute(async (c) => {
             {/* Input 1: Jumlah Saldo Utama */}
             <div>
               <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">Jumlah Setor Utama (Rp)</label>
-              <input type="number" name="jumlah" defaultValue="0" required className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-black focus:border-black font-bold" placeholder="Masukkan nominal uang..." />
+              <input type="number" name="jumlah" value="0" required className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-black focus:border-black font-bold" placeholder="Masukkan nominal uang..." />
             </div>
 
             {/* Input 2: Dropdown / Isian Promosi Bonus */}
             <div>
               <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">Promosi / Bonus Tambahan (Rp)</label>
-              <input type="number" name="promosi" defaultValue="0" required className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-green-600 focus:border-green-600 font-bold text-green-700" placeholder="Masukkan nominal bonus..." />
+              <input type="number" name="promosi" value="0" required className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-green-600 focus:border-green-600 font-bold text-green-700" placeholder="Masukkan nominal bonus..." />
               <p className="text-[10px] text-gray-400 mt-1">Gunakan untuk menyuntikkan bonus komitmen pendaftaran awal (misal Rp 13.000).</p>
             </div>
 
