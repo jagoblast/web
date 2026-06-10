@@ -80,15 +80,18 @@ export default createRoute(async (c) => {
            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Nama Lengkap</label>
-                 <input type="text" name="name" defaultValue={user.name as string} required className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-black" />
+                 {/* PERBAIKAN: defaultValue -> value */}
+                 <input type="text" name="name" value={user.name as string || ''} required className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-black" />
               </div>
               <div>
                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Email (Hanya Baca)</label>
-                 <input type="email" value={user.email as string} disabled className="w-full border border-gray-200 bg-gray-100 px-3 py-2 text-sm rounded-sm text-gray-500 cursor-not-allowed" />
+                 {/* PERBAIKAN: defaultValue -> value */}
+                 <input type="email" value={user.email as string || ''} disabled className="w-full border border-gray-200 bg-gray-100 px-3 py-2 text-sm rounded-sm text-gray-500 cursor-not-allowed" />
               </div>
               <div>
                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Nomor Telepon</label>
-                 <input type="text" name="phone" defaultValue={user.phone as string || ''} className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-black" />
+                 {/* PERBAIKAN: defaultValue -> value */}
+                 <input type="text" name="phone" value={user.phone as string || ''} className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-black" />
               </div>
               <div>
                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Jenis Kelamin</label>
@@ -106,15 +109,18 @@ export default createRoute(async (c) => {
            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Nama Bank</label>
-                 <input type="text" name="bank_name" defaultValue={user.bank_name as string || ''} placeholder="Contoh: BCA" className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-black" />
+                 {/* PERBAIKAN: defaultValue -> value */}
+                 <input type="text" name="bank_name" value={user.bank_name as string || ''} placeholder="Contoh: BCA" className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-black" />
               </div>
               <div className="md:col-span-2">
                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Nama Pemilik Rekening</label>
-                 <input type="text" name="bank_account_name" defaultValue={user.bank_account_name as string || ''} className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-black" />
+                 {/* PERBAIKAN: defaultValue -> value */}
+                 <input type="text" name="bank_account_name" value={user.bank_account_name as string || ''} className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-black" />
               </div>
               <div className="md:col-span-2">
                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Nomor Rekening</label>
-                 <input type="text" name="bank_account_number" defaultValue={user.bank_account_number as string || ''} className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-black" />
+                 {/* PERBAIKAN: defaultValue -> value */}
+                 <input type="text" name="bank_account_number" value={user.bank_account_number as string || ''} className="w-full border border-gray-300 px-3 py-2 text-sm rounded-sm focus:ring-black" />
               </div>
               
               <div className="md:col-span-2 mt-4 pt-4 border-t border-gray-200">
