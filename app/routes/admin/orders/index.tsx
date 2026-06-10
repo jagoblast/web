@@ -8,29 +8,42 @@ export default createRoute(async (c) => {
 
   try {
     if (statusParam) {
-      // 2. Logika Pemfilteran berdasarkan URL
       if (statusParam === 'confirmed') {
-        // Menggabungkan status PAID dan COMPLETED sebagai 'Dikonfirmasi'
-        const { results } = await c.env.DB.prepare(
-          "SELECT * FROM orders WHERE status IN ('PAID', 'COMPLETED') ORDER BY created_at DESC"
-        ).all();
+        // Menggabungkan status PAID dan COMPLETED (Case-insensitive)
+        const { results } = await c.env.DB.prepare(`
+          SELECT o.id, o.created_at, o.grand_total as total_amount, o.status,
+                 u.name as customer_name, u.email as customer_email
+          FROM orders o
+          JOIN users u ON o.user_id = u.id
+          WHERE LOWER(o.status) IN ('paid', 'completed') 
+          ORDER BY o.created_at DESC
+        `).all();
         orders = results || [];
       } else {
-        // Untuk pending, shipped, dan cancelled (ubah ke UPPERCASE agar cocok dengan value opsi Anda)
-        const dbStatus = statusParam.toUpperCase();
-        const { results } = await c.env.DB.prepare(
-          "SELECT * FROM orders WHERE status = ? ORDER BY created_at DESC"
-        ).bind(dbStatus).all();
+        // Pencarian aman tanpa peduli huruf besar/kecil di database
+        const { results } = await c.env.DB.prepare(`
+          SELECT o.id, o.created_at, o.grand_total as total_amount, o.status,
+                 u.name as customer_name, u.email as customer_email
+          FROM orders o
+          JOIN users u ON o.user_id = u.id
+          WHERE LOWER(o.status) = LOWER(?)
+          ORDER BY o.created_at DESC
+        `).bind(statusParam).all();
         orders = results || [];
       }
     } else {
-      // 3. Jika tidak ada parameter (diakses langsung /admin/orders), tampilkan semua
-      const { results } = await c.env.DB.prepare(
-        "SELECT * FROM orders ORDER BY created_at DESC"
-      ).all();
+      // Tampilkan semua jika tidak ada filter
+      const { results } = await c.env.DB.prepare(`
+        SELECT o.id, o.created_at, o.grand_total as total_amount, o.status,
+               u.name as customer_name, u.email as customer_email
+        FROM orders o
+        JOIN users u ON o.user_id = u.id
+        ORDER BY o.created_at DESC
+      `).all();
       orders = results || [];
     }
   } catch (e) {
+    console.error("Order Fetch Error:", e);
     orders = [];
   }
 
@@ -64,29 +77,35 @@ export default createRoute(async (c) => {
                 <td colSpan={5} class="py-12 text-center text-[10px] uppercase tracking-widest text-neutral-400">No orders available for this status.</td>
               </tr>
             ) : (
-              orders.map((order) => (
-                <tr class="border-b border-neutral-100 hover:bg-neutral-50 transition">
-                  <td class="py-5 px-6 text-[10px] font-mono tracking-widest uppercase text-neutral-600">{order.id}</td>
-                  <td class="py-5 px-6 text-[10px] tracking-widest text-neutral-500">{new Date(order.created_at).toLocaleString('en-GB')}</td>
-                  <td class="py-5 px-6">
-                    <p class="text-[10px] font-bold uppercase tracking-widest">{order.customer_name}</p>
-                    <p class="text-[9px] tracking-widest text-neutral-400 mt-1">{order.customer_email}</p>
-                  </td>
-                  <td class="py-5 px-6 text-[11px] font-bold italic tracking-widest">{formatIDR(order.total_amount)}</td>
-                  <td class="py-5 px-6">
-                    <select 
-                      data-order-id={order.id}
-                      class="order-status-select bg-transparent border border-neutral-300 text-[9px] font-bold uppercase tracking-widest py-2 px-3 outline-none focus:border-black cursor-pointer"
-                    >
-                      <option value="PENDING" selected={order.status === 'PENDING'}>PENDING</option>
-                      <option value="PAID" selected={order.status === 'PAID'}>PAID</option>
-                      <option value="SHIPPED" selected={order.status === 'SHIPPED'}>SHIPPED</option>
-                      <option value="COMPLETED" selected={order.status === 'COMPLETED'}>COMPLETED</option>
-                      <option value="CANCELLED" selected={order.status === 'CANCELLED'}>CANCELLED</option>
-                    </select>
-                  </td>
-                </tr>
-              ))
+              orders.map((order) => {
+                // Amankan status ke huruf kecil untuk perbandingan
+                const currentStatus = (order.status || 'pending').toLowerCase();
+                
+                return (
+                  <tr key={order.id} class="border-b border-neutral-100 hover:bg-neutral-50 transition">
+                    <td class="py-5 px-6 text-[10px] font-mono tracking-widest uppercase text-neutral-600">{order.id}</td>
+                    <td class="py-5 px-6 text-[10px] tracking-widest text-neutral-500">{new Date(order.created_at).toLocaleString('en-GB')}</td>
+                    <td class="py-5 px-6">
+                      <p class="text-[10px] font-bold uppercase tracking-widest">{order.customer_name || 'Unknown User'}</p>
+                      <p class="text-[9px] tracking-widest text-neutral-400 mt-1">{order.customer_email || 'No email'}</p>
+                    </td>
+                    <td class="py-5 px-6 text-[11px] font-bold italic tracking-widest">{formatIDR(order.total_amount)}</td>
+                    <td class="py-5 px-6">
+                      {/* Pastikan value yang dikirim huruf kecil agar sesuai format database Anda */}
+                      <select 
+                        data-order-id={order.id}
+                        class="order-status-select bg-transparent border border-neutral-300 text-[9px] font-bold uppercase tracking-widest py-2 px-3 outline-none focus:border-black cursor-pointer"
+                      >
+                        <option value="pending" selected={currentStatus === 'pending'}>PENDING</option>
+                        <option value="paid" selected={currentStatus === 'paid'}>PAID</option>
+                        <option value="shipped" selected={currentStatus === 'shipped'}>SHIPPED</option>
+                        <option value="completed" selected={currentStatus === 'completed'}>COMPLETED</option>
+                        <option value="cancelled" selected={currentStatus === 'cancelled'}>CANCELLED</option>
+                      </select>
+                    </td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>
@@ -106,8 +125,7 @@ export default createRoute(async (c) => {
             
             if(res.ok) {
               alert('Status updated successfully');
-              // Opsi tambahan: reload halaman agar data yang tidak sesuai filter hilang dari layar
-              // window.location.reload(); 
+              window.location.reload(); 
             } else {
               alert('Failed to update status');
             }
@@ -115,6 +133,6 @@ export default createRoute(async (c) => {
         });
       `}} />
     </div>,
-    { title: 'Orders | Admin Visoe' }
+    { title: 'Orders | Admin' }
   );
 });
