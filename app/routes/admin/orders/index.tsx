@@ -3,7 +3,7 @@ import { createRoute } from 'honox/factory';
 export default createRoute(async (c) => {
   let orders: any[] = [];
   
-  // 1. Tangkap parameter status dari URL (contoh: ?status=pending)
+  // Tangkap parameter status dari URL (contoh: ?status=pending)
   const statusParam = c.req.query('status');
 
   try {
@@ -49,58 +49,90 @@ export default createRoute(async (c) => {
 
   const formatIDR = (p: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(p || 0);
 
+  // Terjemahkan status URL ke teks yang lebih enak dibaca untuk Header
+  let statusTitle = "Semua Pesanan";
+  if (statusParam === 'pending') statusTitle = "Pesanan Tertunda";
+  if (statusParam === 'shipped') statusTitle = "Pesanan Dikirim";
+  if (statusParam === 'confirmed') statusTitle = "Pesanan Dikonfirmasi";
+  if (statusParam === 'cancelled') statusTitle = "Pesanan Dibatalkan";
+
   return c.render(
-    <div class="max-w-[1200px] mx-auto py-10 px-6">
-      <div class="flex items-center justify-between mb-12 border-b border-neutral-100 pb-8">
+    <div className="bg-white p-6 md:p-8 rounded-sm shadow-sm border border-gray-200">
+      
+      {/* HEADER PAGE (Disamakan dengan halaman admin lainnya) */}
+      <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
         <div>
-          <h1 class="text-3xl font-serif italic tracking-widest uppercase">Order Management</h1>
-          <p class="text-[10px] text-neutral-400 uppercase tracking-[0.3em] mt-2">
-            {statusParam ? `Menampilkan pesanan: ${statusParam.toUpperCase()}` : 'View and manage customer transactions'}
+          <h2 className="text-xl font-bold text-gray-900 uppercase tracking-tight">
+            Manajemen Pesanan <span className="text-gray-400 font-normal">| {statusTitle}</span>
+          </h2>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Pantau dan kelola seluruh transaksi pesanan pelanggan dari berbagai toko.
           </p>
         </div>
       </div>
 
-      <div class="overflow-x-auto bg-white border border-neutral-100 shadow-sm">
-        <table class="w-full text-left border-collapse">
+      {/* TABEL DATA (Desain disamakan dengan tabel Anggota & Transaksi) */}
+      <div className="overflow-x-auto custom-scrollbar">
+        <table className="w-full text-left border-collapse min-w-[1000px]">
           <thead>
-            <tr class="bg-neutral-50 border-b border-neutral-200">
-              <th class="py-5 px-6 text-[9px] font-bold uppercase tracking-[0.3em] text-neutral-400">Order ID</th>
-              <th class="py-5 px-6 text-[9px] font-bold uppercase tracking-[0.3em] text-neutral-400">Date</th>
-              <th class="py-5 px-6 text-[9px] font-bold uppercase tracking-[0.3em] text-neutral-400">Customer Details</th>
-              <th class="py-5 px-6 text-[9px] font-bold uppercase tracking-[0.3em] text-neutral-400">Total</th>
-              <th class="py-5 px-6 text-[9px] font-bold uppercase tracking-[0.3em] text-neutral-400">Status Action</th>
+            <tr className="bg-gray-900 border-y border-gray-800 text-[11px] uppercase tracking-wider text-gray-200">
+              <th className="p-3 font-bold w-48">Nomor Pesanan</th>
+              <th className="p-3 font-bold">Tanggal Pesanan</th>
+              <th className="p-3 font-bold">Detail Pelanggan</th>
+              <th className="p-3 font-bold">Total Harga</th>
+              <th className="p-3 font-bold text-center">Status Pembayaran & Aksi</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="text-xs text-gray-700 divide-y divide-gray-100">
             {orders.length === 0 ? (
               <tr>
-                <td colSpan={5} class="py-12 text-center text-[10px] uppercase tracking-widest text-neutral-400">No orders available for this status.</td>
+                <td colSpan={5} className="p-8 text-center text-gray-400 font-medium text-sm">
+                  Tidak ada data pesanan untuk kategori ini.
+                </td>
               </tr>
             ) : (
               orders.map((order) => {
-                // Amankan status ke huruf kecil untuk perbandingan
                 const currentStatus = (order.status || 'pending').toLowerCase();
                 
+                // Pewarnaan baris tipis berdasarkan status
+                let rowBg = "hover:bg-gray-50";
+                if (currentStatus === 'cancelled') rowBg = "bg-red-50/30 hover:bg-red-50";
+                if (currentStatus === 'completed' || currentStatus === 'paid') rowBg = "bg-green-50/30 hover:bg-green-50";
+
                 return (
-                  <tr key={order.id} class="border-b border-neutral-100 hover:bg-neutral-50 transition">
-                    <td class="py-5 px-6 text-[10px] font-mono tracking-widest uppercase text-neutral-600">{order.id}</td>
-                    <td class="py-5 px-6 text-[10px] tracking-widest text-neutral-500">{new Date(order.created_at).toLocaleString('en-GB')}</td>
-                    <td class="py-5 px-6">
-                      <p class="text-[10px] font-bold uppercase tracking-widest">{order.customer_name || 'Unknown User'}</p>
-                      <p class="text-[9px] tracking-widest text-neutral-400 mt-1">{order.customer_email || 'No email'}</p>
+                  <tr key={order.id} className={`transition-colors ${rowBg}`}>
+                    <td className="p-3 font-mono font-bold text-gray-800">{order.id}</td>
+                    
+                    <td className="p-3 text-gray-500">
+                      {new Date(order.created_at).toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: 'numeric'})} 
+                      <span className="text-[10px] ml-1">{new Date(order.created_at).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}</span>
                     </td>
-                    <td class="py-5 px-6 text-[11px] font-bold italic tracking-widest">{formatIDR(order.total_amount)}</td>
-                    <td class="py-5 px-6">
-                      {/* Pastikan value yang dikirim huruf kecil agar sesuai format database Anda */}
+                    
+                    <td className="p-3">
+                      <div className="font-bold text-gray-900 uppercase tracking-widest">{order.customer_name || 'Unknown User'}</div>
+                      <div className="text-[10px] text-gray-500 mt-0.5">{order.customer_email || 'Tidak ada email'}</div>
+                    </td>
+                    
+                    <td className="p-3 font-black text-blue-600 text-sm">
+                      {formatIDR(order.total_amount)}
+                    </td>
+                    
+                    <td className="p-3 text-center">
                       <select 
                         data-order-id={order.id}
-                        class="order-status-select bg-transparent border border-neutral-300 text-[9px] font-bold uppercase tracking-widest py-2 px-3 outline-none focus:border-black cursor-pointer"
+                        className={`order-status-select border text-[10px] font-bold uppercase tracking-wider py-1.5 px-3 rounded-sm outline-none cursor-pointer transition-colors
+                          ${currentStatus === 'pending' ? 'border-amber-300 text-amber-700 bg-amber-50 focus:border-amber-500' : ''}
+                          ${currentStatus === 'paid' ? 'border-blue-300 text-blue-700 bg-blue-50 focus:border-blue-500' : ''}
+                          ${currentStatus === 'shipped' ? 'border-purple-300 text-purple-700 bg-purple-50 focus:border-purple-500' : ''}
+                          ${currentStatus === 'completed' ? 'border-green-300 text-green-700 bg-green-50 focus:border-green-500' : ''}
+                          ${currentStatus === 'cancelled' ? 'border-red-300 text-red-700 bg-red-50 focus:border-red-500' : ''}
+                        `}
                       >
-                        <option value="pending" selected={currentStatus === 'pending'}>PENDING</option>
-                        <option value="paid" selected={currentStatus === 'paid'}>PAID</option>
-                        <option value="shipped" selected={currentStatus === 'shipped'}>SHIPPED</option>
-                        <option value="completed" selected={currentStatus === 'completed'}>COMPLETED</option>
-                        <option value="cancelled" selected={currentStatus === 'cancelled'}>CANCELLED</option>
+                        <option value="pending" selected={currentStatus === 'pending'}>TERTUNDA (PENDING)</option>
+                        <option value="paid" selected={currentStatus === 'paid'}>DIBAYAR (PAID)</option>
+                        <option value="shipped" selected={currentStatus === 'shipped'}>DIKIRIM (SHIPPED)</option>
+                        <option value="completed" selected={currentStatus === 'completed'}>SELESAI (COMPLETED)</option>
+                        <option value="cancelled" selected={currentStatus === 'cancelled'}>DIBATALKAN</option>
                       </select>
                     </td>
                   </tr>
@@ -117,22 +149,33 @@ export default createRoute(async (c) => {
             const orderId = e.target.getAttribute('data-order-id');
             const newStatus = e.target.value;
             
-            const res = await fetch('/api/orders/update-status', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: orderId, status: newStatus })
-            });
-            
-            if(res.ok) {
-              alert('Status updated successfully');
-              window.location.reload(); 
-            } else {
-              alert('Failed to update status');
+            // Berikan efek visual loading pada select
+            e.target.style.opacity = '0.5';
+            e.target.disabled = true;
+
+            try {
+              const res = await fetch('/api/orders/update-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: orderId, status: newStatus })
+              });
+              
+              if(res.ok) {
+                window.location.reload(); 
+              } else {
+                alert('Gagal memperbarui status pesanan.');
+                e.target.style.opacity = '1';
+                e.target.disabled = false;
+              }
+            } catch (err) {
+              alert('Terjadi kesalahan jaringan.');
+              e.target.style.opacity = '1';
+              e.target.disabled = false;
             }
           });
         });
       `}} />
     </div>,
-    { title: 'Orders | Admin' }
+    { title: 'Manajemen Pesanan | Admin' }
   );
 });
